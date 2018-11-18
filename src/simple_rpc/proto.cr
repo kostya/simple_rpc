@@ -50,7 +50,7 @@ module SimpleRpc::Proto
         end
       end
 
-      class Client < SimpleRpc::Client
+      class Client < SimpleRpc::RawClient
         \{% for m in @type.methods %}
           \{% if m.visibility.stringify == ":public" %}
             \{% if !m.return_type %}
@@ -61,7 +61,7 @@ module SimpleRpc::Proto
             \{% args = m.args.map { |a| a.name }.join(", ").id %}
 
             def \{{m.name}}(\{{args_list}})
-              resp = @raw_client.request(\{{m.name.stringify}}, Tuple.new(\{{args.id}}))
+              resp = request(\{{m.name.stringify}}, Tuple.new(\{{args.id}}))
               SimpleRpc::Result(\{{m.return_type.id}}).from(resp)
             end
           \{% end %}
