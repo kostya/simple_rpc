@@ -1,9 +1,11 @@
 class SimpleRpc::Server
+  @server : HTTP::Server?
+
   def initialize(@host : String, @port : Int32)
   end
 
   def run
-    server = HTTP::Server.new do |context|
+    @server = server = HTTP::Server.new do |context|
       context.response.headers["Content-Type"] = "application/msgpack"
       body = context.request.body.try(&.gets_to_end)
       if body
@@ -22,5 +24,9 @@ class SimpleRpc::Server
   end
 
   def handle_http(path, raw, response)
+  end
+
+  def close
+    @server.try(&.close) rescue nil
   end
 end
