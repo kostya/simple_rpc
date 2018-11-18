@@ -54,28 +54,21 @@ module SimpleRpc::Proto
     end
 
     macro finished
-      # todo; select only public methods
-      \{% for m in @type.methods %}
-        \{% if !m.return_type %}
-          \{% raise "method '#{m.name}' must have a return type" %}
+      class Client < SimpleRpc::Client
+        # todo; select only public methods
+        \{% for m in @type.methods %}
+          \{% if !m.return_type %}
+            \{% raise "method '#{m.name}' must have a return type" %}
+          \{% end %}
+
+          \{% args_list = m.args.join(", ").id %}
+          \{% args = m.args.map { |a| a.name }.join(", ").id %}
+
+          def \{{m.name}}(\{{args_list}}) : SimpleRpc::Result(\{{m.return_type.id}})
+            resp = @raw_client.request(\{{m.name.stringify}}, Tuple.new(\{{args.id}}))
+            SimpleRpc::Result(\{{m.return_type.id}}).from(resp)
+          end
         \{% end %}
-        \{% args_list = m.args.join(", ").id %}
-        \{% args = m.args.map { |a| a.name }.join(", ").id %}
-
-        def self.rpc_\{{m.name}}(client : SimpleRpc::RawClient, \{{args_list}}) : SimpleRpc::Result(\{{m.return_type.id}})
-          resp = client.request(\{{m.name.stringify}}, Tuple.new(\{{args.id}}))
-          SimpleRpc::Result(\{{m.return_type.id}}).from(resp)
-        end
-      \{% end %}
-    end
-
-    class Client
-      def initialize(@host : String, @port : Int32)
-      end
-
-      macro method_missing(call)
-        client = SimpleRpc::RawClient.new(@host, @port)
-        {{@type}}.rpc_\{{call.name}}(client, \{{call.args.map { |a| a.id }.join(", ").id}})
       end
     end
   end
