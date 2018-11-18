@@ -6,9 +6,9 @@ class SimpleRpc::Server
     server = HTTP::Server.new do |context|
       context.response.headers["Content-Type"] = "application/msgpack"
       body = context.request.body.try(&.gets_to_end)
-      if body && body.starts_with?("args=")
+      if body
         begin
-          raw = Base64.decode(body[5..-1])
+          raw = Base64.decode(body)
           handle_http(context.request.path, raw, context.response)
         rescue Base64::Error
           {SimpleRpc::Error::ERROR_UNPACK_REQUEST, "not base64", nil}.to_msgpack(context.response)
