@@ -32,7 +32,7 @@ describe SimpleRpc do
   it "exception" do
     res = CLIENT.bla("O_o", 9.6)
     res.error.should eq SimpleRpc::Error::TASK_EXCEPTION
-    res.message.should eq "Invalid Float64: O_o"
+    res.message.not_nil!.should start_with "Invalid Float64: O_o"
     res.value.should eq nil
   end
 

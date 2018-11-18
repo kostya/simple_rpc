@@ -35,7 +35,8 @@ module SimpleRpc::Proto
                 res = begin
                   proto.\{{m.name}}(*req)
                 rescue ex
-                  {SimpleRpc::Error::TASK_EXCEPTION, ex.message, nil}.to_msgpack(response)
+                  msg = "#{ex.message}\n#{ex.backtrace.join("\n")}"
+                  {SimpleRpc::Error::TASK_EXCEPTION, msg, nil}.to_msgpack(response)
                   return
                 end
 

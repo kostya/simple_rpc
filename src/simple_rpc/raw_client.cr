@@ -39,6 +39,8 @@ class SimpleRpc::RawClient
     end
 
     yield client
+  rescue IO::Timeout
+    Response.new(Error::HTTP_EXCEPTION)
   rescue ex
     Response.new(Error::HTTP_EXCEPTION)
   ensure
