@@ -1,0 +1,4 @@
+
+* permanent client
+* protocall like msgpack-rpc
+* more http methods to call from curl also
