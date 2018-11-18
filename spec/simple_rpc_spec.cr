@@ -20,6 +20,15 @@ describe SimpleRpc do
     res.value.not_nil!.y.should eq({"_0_" => 0, "_1_" => 1, "_2_" => 2})
   end
 
+  it "ok sleep" do
+    t = Time.now
+    res = CLIENT.sleepi(0.1)
+    res.error.should eq SimpleRpc::Error::OK
+    res.value.should eq nil
+    (Time.now - t).to_f.should be < 0.2
+    (Time.now - t).to_f.should be >= 0.1
+  end
+
   it "exception" do
     res = CLIENT.bla("O_o", 9.6)
     res.error.should eq SimpleRpc::Error::TASK_EXCEPTION

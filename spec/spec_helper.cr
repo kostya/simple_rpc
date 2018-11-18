@@ -19,6 +19,11 @@ class SpecProto
     Bla.new(a.to_s, h)
   end
 
+  def sleepi(v : Float64) : Nil
+    sleep(v)
+    nil
+  end
+
   def no_args : Int32
     0
   end
