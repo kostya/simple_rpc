@@ -10,4 +10,9 @@ dependencies:
   msgpack:
     github: crystal-community/msgpack-crystal
 
+development_dependencies:
+  kemal:
+    github: kemalcr/kemal
+    version: 0.24.0
+
 license: MIT
