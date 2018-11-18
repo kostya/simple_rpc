@@ -3,6 +3,9 @@ require "msgpack"
 
 module SimpleRpc::Proto
   macro included
+    class Client < SimpleRpc::RawClient
+    end
+
     macro finished
       class Server < SimpleRpc::Server
         def handle_http(path, raw, response)
@@ -51,7 +54,7 @@ module SimpleRpc::Proto
         end
       end
 
-      class Client < SimpleRpc::RawClient
+      class Client
         \{% for m in @type.methods %}
           \{% if m.visibility.stringify == ":public" %}
             \{% if !m.return_type %}
