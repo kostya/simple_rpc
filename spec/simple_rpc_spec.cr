@@ -29,6 +29,14 @@ describe SimpleRpc do
     (Time.now - t).to_f.should be >= 0.1
   end
 
+  it "ok with_default_value" do
+    res = CLIENT.with_default_value(2)
+    res.value.not_nil!.should eq 3
+
+    res = CLIENT.with_default_value
+    res.value.not_nil!.should eq 2
+  end
+
   it "exception" do
     res = CLIENT.bla("O_o", 9.6)
     res.error.should eq SimpleRpc::Error::TASK_EXCEPTION

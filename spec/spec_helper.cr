@@ -27,6 +27,10 @@ class SpecProto
   def no_args : Int32
     0
   end
+
+  def with_default_value(x : Int32 = 1) : Int32
+    x + 1
+  end
 end
 
 class SpecProto2
