@@ -29,6 +29,17 @@ class SpecProto
   end
 end
 
+class SpecProto2
+  include SimpleRpc::Proto
+
+  def bla(x : Float64, y : String) : Float64
+    x * y.to_f
+  end
+
+  def zip : Nil
+  end
+end
+
 spawn do
   SpecProto::Server.new("127.0.0.1", 8888).run
 end
@@ -36,3 +47,4 @@ end
 sleep 0.1
 CLIENT     = SpecProto::Client.new("127.0.0.1", 8888)
 CLIENT_BAD = SpecProto::Client.new("127.0.0.1", 8889)
+CLIENT2    = SpecProto2::Client.new("127.0.0.1", 8888)

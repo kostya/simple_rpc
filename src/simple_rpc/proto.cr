@@ -48,7 +48,7 @@ module SimpleRpc::Proto
           \{% end %}
 
           else
-            {SimpleRpc::Error::UNKNOWN_METHOD, path, nil}.to_msgpack(response)
+            {SimpleRpc::Error::UNKNOWN_METHOD, "unknown method '#{path[5..-1]}'", nil}.to_msgpack(response)
           end
           \{% end %}
         end

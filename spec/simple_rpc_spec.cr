@@ -42,4 +42,18 @@ describe SimpleRpc do
     res.message.should eq nil
     res.value.should eq nil
   end
+
+  it "unknown method" do
+    res = CLIENT2.zip
+    res.error.should eq SimpleRpc::Error::UNKNOWN_METHOD
+    res.message.not_nil!.should start_with "unknown method 'zip'"
+    res.value.should eq nil
+  end
+
+  it "bad params" do
+    res = CLIENT2.bla(1.3, "2.5")
+    res.error.should eq SimpleRpc::Error::ERROR_UNPACK_REQUEST
+    res.message.not_nil!.should start_with "msgpack not matched with Tuple(String, Float64)"
+    res.value.should eq nil
+  end
 end
