@@ -7,6 +7,12 @@ describe SimpleRpc do
     res.value.should eq 33.6
   end
 
+  it "ok raw request" do
+    res = CLIENT.request(Float64, :bla, "3.5", 9.6)
+    res.error.should eq SimpleRpc::Error::OK
+    res.value.should eq 33.6
+  end
+
   it "ok no_args" do
     res = CLIENT.no_args
     res.error.should eq SimpleRpc::Error::OK

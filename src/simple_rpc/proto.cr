@@ -65,8 +65,7 @@ module SimpleRpc::Proto
             \{% args = m.args.map { |a| a.name }.join(", ").id %}
 
             def \{{m.name}}(\{{args_list}})
-              resp = request(\{{m.name.stringify}}, Tuple.new(\{{args.id}}))
-              SimpleRpc::Result(\{{m.return_type.id}}).from(resp)
+              request(\{{m.return_type.id}}, \{{m.name.stringify}}, \{{args.id}})
             end
           \{% end %}
         \{% end %}

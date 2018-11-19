@@ -7,7 +7,11 @@ class SimpleRpc::RawClient
 
   HEADERS = HTTP::Headers{"Content-type" => "application/x-www-form-urlencoded"}
 
-  def request(action, args_array)
+  def request(klass : T.class, name, *args) forall T
+    SimpleRpc::Result(T).from(send_request(name, Tuple.new(*args)))
+  end
+
+  def send_request(action, args_array)
     body = Base64.urlsafe_encode(args_array.to_msgpack, padding: false)
     resp = raw_request("/rpc_#{action}", body)
   end
