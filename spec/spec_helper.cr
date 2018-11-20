@@ -19,9 +19,9 @@ class SpecProto
     Bla.new(a.to_s, h)
   end
 
-  def sleepi(v : Float64) : Nil
+  def sleepi(v : Float64) : Int32
     sleep(v)
-    nil
+    1
   end
 
   def no_args : Int32
@@ -30,6 +30,16 @@ class SpecProto
 
   def with_default_value(x : Int32 = 1) : Int32
     x + 1
+  end
+
+  def raw_result : SimpleRpc::Server::RawMsgpack
+    SimpleRpc::Server::RawMsgpack.new({1, "bla", 6.5}.to_msgpack)
+  end
+
+  def stream_result : SimpleRpc::Server::IOMsgpack
+    bytes = {1, "bla", 6.5}.to_msgpack
+    io = IO::Memory.new(bytes)
+    SimpleRpc::Server::IOMsgpack.new(io)
   end
 end
 
@@ -49,6 +59,7 @@ spawn do
 end
 
 sleep 0.1
-CLIENT     = SpecProto::Client.new("127.0.0.1", 8888)
-CLIENT_BAD = SpecProto::Client.new("127.0.0.1", 8889)
-CLIENT2    = SpecProto2::Client.new("127.0.0.1", 8888)
+CLIENT         = SpecProto::Client.new("127.0.0.1", 8888)
+CLIENT_TIMEOUT = SpecProto::Client.new("127.0.0.1", 8888, timeout: 0.2)
+CLIENT_BAD     = SpecProto::Client.new("127.0.0.1", 8889)
+CLIENT2        = SpecProto2::Client.new("127.0.0.1", 8888)

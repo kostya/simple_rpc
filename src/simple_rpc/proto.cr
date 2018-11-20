@@ -27,7 +27,7 @@ module SimpleRpc::Proto
                   req = begin
                     tuple.from_msgpack(raw)
                   rescue MessagePack::Error
-                    {SimpleRpc::Error::ERROR_UNPACK_REQUEST, "msgpack not matched with #{tuple.inspect}", nil}.to_msgpack(response)
+                    pack(response, SimpleRpc::Error::ERROR_UNPACK_REQUEST, "msgpack not matched with #{tuple.inspect}")
                     return
                   end
                 \{% else %}
@@ -38,17 +38,17 @@ module SimpleRpc::Proto
                 res = begin
                   proto.\{{m.name}}(*req)
                 rescue ex
-                  msg = "#{ex.message}\n#{ex.backtrace.join("\n")}"
-                  {SimpleRpc::Error::TASK_EXCEPTION, msg, nil}.to_msgpack(response)
+                  msg = ex.message
+                  pack(response, SimpleRpc::Error::TASK_EXCEPTION, msg)
                   return
                 end
 
-                {SimpleRpc::Error::OK, nil, res}.to_msgpack(response)
+                pack(response, SimpleRpc::Error::OK, nil, res)
             \{% end %}
           \{% end %}
 
           else
-            {SimpleRpc::Error::UNKNOWN_METHOD, "unknown method '#{path[5..-1]}'", nil}.to_msgpack(response)
+            pack(response, SimpleRpc::Error::UNKNOWN_METHOD, "unknown method '#{path[5..-1]}'")
           end
           \{% end %}
         end

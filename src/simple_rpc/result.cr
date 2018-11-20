@@ -4,17 +4,19 @@ struct SimpleRpc::Result(T)
   def initialize(@error : Error, @message : String? = nil, @value : T | Nil = nil)
   end
 
-  def self.from(resp : Response)
-    if resp.error == Error::OK
-      res = Tuple(Error, String?, T?).from_msgpack(resp.raw.not_nil!)
-      Result(T).new(res[0], message: res[1], value: res[2])
-    else
-      Result(T).new(resp.error)
+  def self.from(io : IO)
+    err, msg = begin
+      {Error.from_msgpack(io), String?.from_msgpack(io)}
+    rescue MessagePack::Error
+      return Result(T).new(Error::ERROR_UNPACK_RESPONSE, message: "failed to unpack server response")
     end
-  rescue ex : MessagePack::Error
-    msg = if r = resp.raw
-            String.new(r)
-          end
-    Result(T).new(Error::ERROR_UNPACK_RESPONSE, message: msg)
+
+    res = begin
+      T?.from_msgpack(io)
+    rescue ex : MessagePack::Error
+      return Result(T).new(Error::ERROR_UNPACK_RESPONSE, message: "failed to unpack server response (result not matched with type #{T.inspect})")
+    end
+
+    Result(T).new(err, msg, res)
   end
 end

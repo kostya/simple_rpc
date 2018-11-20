@@ -13,6 +13,13 @@ describe SimpleRpc do
     res.value.should eq 33.6
   end
 
+  it "error raw request" do
+    res = CLIENT.request(String, :bla, "3.5", 9.6)
+    res.error.should eq SimpleRpc::Error::ERROR_UNPACK_RESPONSE
+    res.message.should eq "failed to unpack server response (result not matched with type String)"
+    res.value.should eq nil
+  end
+
   it "ok no_args" do
     res = CLIENT.no_args
     res.error.should eq SimpleRpc::Error::OK
@@ -24,15 +31,6 @@ describe SimpleRpc do
     res.error.should eq SimpleRpc::Error::OK
     res.value.not_nil!.x.should eq "3"
     res.value.not_nil!.y.should eq({"_0_" => 0, "_1_" => 1, "_2_" => 2})
-  end
-
-  it "ok sleep" do
-    t = Time.now
-    res = CLIENT.sleepi(0.1)
-    res.error.should eq SimpleRpc::Error::OK
-    res.value.should eq nil
-    (Time.now - t).to_f.should be < 0.2
-    (Time.now - t).to_f.should be >= 0.1
   end
 
   it "ok with_default_value" do
@@ -69,5 +67,35 @@ describe SimpleRpc do
     res.error.should eq SimpleRpc::Error::ERROR_UNPACK_REQUEST
     res.message.not_nil!.should start_with "msgpack not matched with Tuple(String, Float64)"
     res.value.should eq nil
+  end
+
+  it "ok sleep" do
+    t = Time.now
+    res = CLIENT.sleepi(0.1)
+    res.error.should eq SimpleRpc::Error::OK
+    res.value.should eq 1
+    (Time.now - t).to_f.should be < 0.2
+    (Time.now - t).to_f.should be >= 0.1
+  end
+
+  it "sleep timeout" do
+    t = Time.now
+    res = CLIENT_TIMEOUT.sleepi(0.5)
+    res.error.should eq SimpleRpc::Error::TIMEOUT
+    res.value.should eq nil
+    (Time.now - t).to_f.should be < 0.25
+    (Time.now - t).to_f.should be >= 0.2
+  end
+
+  it "ok raw result" do
+    res = CLIENT.request(Tuple(Int32, String, Float64), :raw_result)
+    res.error.should eq SimpleRpc::Error::OK
+    res.value.should eq({1, "bla", 6.5})
+  end
+
+  it "ok stream result" do
+    res = CLIENT.request(Tuple(Int32, String, Float64), :stream_result)
+    res.error.should eq SimpleRpc::Error::OK
+    res.value.should eq({1, "bla", 6.5})
   end
 end
