@@ -9,7 +9,7 @@ class SimpleRpc::Server
 
   def run
     @server = server = HTTP::Server.new do |context|
-      context.response.headers["Content-Type"] = "application/msgpack"
+      # context.response.headers["Content-Type"] = "application/msgpack"
       if body = context.request.body
         handle_http(context.request.path, body, context.response)
       else

@@ -5,8 +5,6 @@ class SimpleRpc::RawClient
   def initialize(@host : String, @port : Int32, @timeout : Float64? = nil, @connect_timeout : Float64? = nil)
   end
 
-  HEADERS = HTTP::Headers{"Content-type" => "application/x-www-form-urlencoded"}
-
   def request(klass : T.class, name, *args) forall T
     res = send_request(name, Tuple.new(*args)) do |io|
       return SimpleRpc::Result(T).from(io)
@@ -22,7 +20,7 @@ class SimpleRpc::RawClient
 
   def raw_request(action, body)
     with_client do |client|
-      client.post(action, body: body, headers: HEADERS) do |response|
+      client.post(action, body: body) do |response|
         if response.status_code == 200
           yield(response.body_io)
         else
