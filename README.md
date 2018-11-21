@@ -50,3 +50,19 @@ result = client.request(Float64, :bla, 3, "5.5")
 p result.error # => SimpleRpc::Error::OK
 p result.value # => 16.5
 ```
+
+#### If you want to exchange complex data types, you should include MessagePack::Serializable
+```crystal
+require "simple_rpc"
+
+record Struct1, x : String, y : Hash(String, String) { include MessagePack::Serializable }
+record Struct2, q : Float64, w : Array(Tuple(Int32, String)) { include MessagePack::Serializable }
+
+class MyRpc 
+  include SimpleRpc::Proto
+
+  def complex(data : Struct1) : Struct2
+    # ...
+  end
+end
+s```
