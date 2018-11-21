@@ -41,6 +41,24 @@ class SpecProto
     io = IO::Memory.new(bytes)
     SimpleRpc::Server::IOMsgpack.new(io)
   end
+
+  def bin_input_args(x : Array(String), y : Float64) : String
+    w = 0_u64
+
+    x.each do |s|
+      s.each_byte { |b| w += b }
+    end
+
+    (w * y).to_s
+  end
+
+  def big_result(x : Int32) : Hash(String, String)
+    h = {} of String => String
+    x.times do |i|
+      h["__----#{i}------"] = "asfasdflkqwflqwe#{i}"
+    end
+    h
+  end
 end
 
 class SpecProto2

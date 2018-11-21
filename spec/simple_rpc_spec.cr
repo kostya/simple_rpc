@@ -41,6 +41,20 @@ describe SimpleRpc do
     res.value.not_nil!.should eq 2
   end
 
+  it "ok with big input args" do
+    strings = (0..5).map { |i| (0..60000 + i).map(&.chr).join }
+    res = CLIENT.bin_input_args(strings, 2.5)
+    res.error.should eq SimpleRpc::Error::OK
+    res.value.should eq "488953775.0"
+  end
+
+  it "ok with big result" do
+    res = CLIENT.big_result(10_000)
+    res.error.should eq SimpleRpc::Error::OK
+    res.value.not_nil!.size.should eq 10_000
+    res.value.not_nil!["__----9999------"].should eq "asfasdflkqwflqwe9999"
+  end
+
   it "exception" do
     res = CLIENT.bla("O_o", 9.6)
     res.error.should eq SimpleRpc::Error::TASK_EXCEPTION

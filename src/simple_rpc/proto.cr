@@ -38,8 +38,7 @@ module SimpleRpc::Proto
                 res = begin
                   proto.\{{m.name}}(*req)
                 rescue ex
-                  msg = ex.message
-                  pack(response, SimpleRpc::Error::TASK_EXCEPTION, msg)
+                  pack(response, SimpleRpc::Error::TASK_EXCEPTION, ex.message)
                   return
                 end
 
