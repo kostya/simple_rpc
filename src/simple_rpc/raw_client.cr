@@ -15,8 +15,7 @@ class SimpleRpc::RawClient
   end
 
   def send_request(action, args_array)
-    body = Base64.urlsafe_encode(args_array.to_msgpack, padding: false)
-    resp = raw_request("/rpc_#{action}", body) do |io|
+    resp = raw_request("/rpc_#{action}", args_array.to_msgpack) do |io|
       yield io
     end
   end
