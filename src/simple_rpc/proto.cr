@@ -8,7 +8,7 @@ module SimpleRpc::Proto
 
     macro finished
       class Server < SimpleRpc::Server
-        def handle_http(path, raw, response)
+        def handle_http(path, body_io, response)
           \{% begin %}
           case path
           \{% for m in @type.methods %}
@@ -25,7 +25,7 @@ module SimpleRpc::Proto
                                 }})
 
                   req = begin
-                    tuple.from_msgpack(raw)
+                    tuple.from_msgpack(body_io)
                   rescue MessagePack::Error
                     pack(response, SimpleRpc::Error::ERROR_UNPACK_REQUEST, "msgpack not matched with #{tuple.inspect}")
                     return
@@ -47,7 +47,9 @@ module SimpleRpc::Proto
           \{% end %}
 
           else
-            pack(response, SimpleRpc::Error::UNKNOWN_METHOD, "unknown method '#{path[5..-1]}'")
+            unless additional_http(path, body_io, response)
+              pack(response, SimpleRpc::Error::UNKNOWN_METHOD, "unknown method '#{path[5..-1]}'")
+            end
           end
           \{% end %}
         end

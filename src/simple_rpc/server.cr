@@ -34,7 +34,11 @@ class SimpleRpc::Server
     end
   end
 
-  def handle_http(path, raw, response)
+  def handle_http(path, body_io, response)
+  end
+
+  def additional_http(path, body_io, response)
+    false
   end
 
   def close
