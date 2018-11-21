@@ -65,4 +65,4 @@ class MyRpc
     # ...
   end
 end
-s```
+```
