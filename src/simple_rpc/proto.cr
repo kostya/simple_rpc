@@ -48,7 +48,8 @@ module SimpleRpc::Proto
 
           else
             unless additional_http(path, body_io, response)
-              pack(response, SimpleRpc::Error::UNKNOWN_METHOD, "unknown method '#{path[5..-1]}'")
+              path = path[5..-1] if path.starts_with?("/rpc_")
+              pack(response, SimpleRpc::Error::UNKNOWN_METHOD, "unknown method '#{path}'")
             end
           end
           \{% end %}
