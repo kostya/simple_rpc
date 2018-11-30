@@ -6,10 +6,10 @@ class SimpleRpc::RawClient
   end
 
   def request(klass : T.class, name, *args) forall T
-    res = send_request(name, Tuple.new(*args)) do |io|
+    res, msg = send_request(name, Tuple.new(*args)) do |io|
       return SimpleRpc::Result(T).from(io)
     end
-    SimpleRpc::Result(T).new(res)
+    SimpleRpc::Result(T).new(res, msg)
   end
 
   def send_request(action, args_array)
@@ -24,11 +24,11 @@ class SimpleRpc::RawClient
         if response.status_code == 200
           yield(response.body_io)
         else
-          return Error::HTTP_BAD_STATUS
+          return {Error::HTTP_BAD_STATUS, "Http status #{response.status_code}"}
         end
       end
 
-      Error::HTTP_UNKNOWN_ERROR
+      {Error::HTTP_UNKNOWN_ERROR, nil}
     end
   end
 
@@ -43,11 +43,11 @@ class SimpleRpc::RawClient
     end
 
     yield client
-    Error::OK
+    {Error::OK, nil}
   rescue IO::Timeout
-    Error::TIMEOUT
+    {Error::TIMEOUT, "Timeouted (#{@timeout}, #{@connect_timeout})"}
   rescue ex
-    Error::HTTP_EXCEPTION
+    {Error::HTTP_EXCEPTION, ex.message}
   ensure
     client.try(&.close) rescue nil
   end

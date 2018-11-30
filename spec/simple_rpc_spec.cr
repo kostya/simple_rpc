@@ -65,7 +65,7 @@ describe SimpleRpc do
   it "no server" do
     res = CLIENT_BAD.bla("O_o", 9.6)
     res.error.should eq SimpleRpc::Error::HTTP_EXCEPTION
-    res.message.should eq nil
+    res.message.should eq "Error connecting to '127.0.0.1:8889': Connection refused"
     res.value.should eq nil
   end
 
