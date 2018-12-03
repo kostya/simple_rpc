@@ -9,11 +9,11 @@ class MyRpc
 end
 
 spawn do
-  MyRpc::Server.new("127.0.0.1", 9000).run
+  MyRpc::SocketServer.new("127.0.0.1", 9000).run
 end
 
 sleep 0.1
-client = MyRpc::Client.new("127.0.0.1", 9000)
+client = MyRpc::SocketClient.new("127.0.0.1", 9000)
 result = client.bla(3, "5.5")
 
 p result.error # => SimpleRpc::Error::OK

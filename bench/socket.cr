@@ -9,12 +9,12 @@ class Bench
 end
 
 spawn do
-  Bench::Server.new("127.0.0.1", 9002).run
+  Bench::SocketServer.new("127.0.0.1", 9002).run
 end
 
 sleep 0.5
 
-client = Bench::Client.new("127.0.0.1", 9002)
+client = Bench::SocketClient.new("127.0.0.1", 9002)
 t = Time.now
 s = 0
 1000.times do |i|

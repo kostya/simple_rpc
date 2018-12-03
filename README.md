@@ -1,6 +1,6 @@
 # simple_rpc
 
-Remote Procedure Call Server and Client for Crystal. Designed to be reliable and stable (catch every possible protocall errors).
+Remote Procedure Call Server and Client for Crystal. Designed to be reliable and stable (catch every possible protocall errors). Compatible with msgpack-rpc protocall.
 
 ## Installation
 
@@ -26,11 +26,11 @@ class MyRpc
 end
 
 spawn do
-  MyRpc::Server.new("127.0.0.1", 9000).run
+  MyRpc::SocketServer.new("127.0.0.1", 9000).run
 end
 
 sleep 0.1
-client = MyRpc::Client.new("127.0.0.1", 9000)
+client = MyRpc::SocketClient.new("127.0.0.1", 9000)
 result = client.bla(3, "5.5")
 
 p result.error # => SimpleRpc::Error::OK
@@ -44,7 +44,7 @@ class MyRpc
   include SimpleRpc::Proto
 end
 
-client = MyRpc::Client.new("127.0.0.1", 9000)
+client = MyRpc::SocketClient.new("127.0.0.1", 9000)
 result = client.request(Float64, :bla, 3, "5.5")
 
 p result.error # => SimpleRpc::Error::OK

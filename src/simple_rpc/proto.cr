@@ -3,60 +3,67 @@ require "msgpack"
 
 module SimpleRpc::Proto
   macro included
-    class Client < SimpleRpc::RawClient
-    end
+    class HttpClient < SimpleRpc::HttpClient; end
+    class HttpServer < SimpleRpc::HttpServer; end
+    class SocketServer < SimpleRpc::SocketServer; end
+    class SocketClient < SimpleRpc::SocketClient; end
 
     macro finished
-      class Server < SimpleRpc::Server
-        def handle_http(path, body_io, response)
-          \{% begin %}
-          case path
-          \{% for m in @type.methods %}
-            \{% if m.visibility.stringify == ":public" %}
-              when "/rpc_\{{m.name}}"
-                \{% if m.args.size > 0 %}
-                  tuple = Tuple(\{{ m.args.map do |arg|
+      def self.handle_request(ctx : SimpleRpc::Server::Context)
+        \{% begin %}
+        case ctx.req.method
+        \{% for m in @type.methods %}
+          \{% if m.visibility.stringify == ":public" %}
+            when "\{{m.name}}"
+              args_size = \{{ m.args.size.id }}
+              return ctx.write_error(SimpleRpc::Error::ERROR_UNPACK_REQUEST, "expected #{args_size} args, but got #{ctx.req.args_size}") if ctx.req.args_size != args_size
+
+              \{% if m.args.size > 0 %}
+                req = begin
+                  Tuple.new(\{{ m.args.map do |arg|
                                   if arg.restriction
-                                    arg.restriction
+                                    "#{arg.restriction}.new(ctx.req.unpacker)"
                                   else
                                     raise "argument '#{arg}' in method '#{m.name}' must have a type restriction"
                                   end
                                 end.join(", ").id
                                 }})
-
-                  req = begin
-                    tuple.from_msgpack(body_io)
-                  rescue MessagePack::Error
-                    pack(response, SimpleRpc::Error::ERROR_UNPACK_REQUEST, "msgpack not matched with #{tuple.inspect}")
-                    return
-                  end
-                \{% else %}
-                  req = Tuple.new
-                \{% end %}
-
-                proto = \{{@type}}.new
-                res = begin
-                  proto.\{{m.name}}(*req)
+                rescue MessagePack::Error
+                  return ctx.write_error(SimpleRpc::Error::ERROR_UNPACK_REQUEST, "bad arguments, expected \{{m.args}}, but got something else")
                 rescue ex
-                  pack(response, SimpleRpc::Error::TASK_EXCEPTION, ex.message)
-                  return
+                  return ctx.write_error(SimpleRpc::Error::ERROR_UNPACK_REQUEST, "failed to read from io '#{ex.message}'")
                 end
+              \{% else %}
+                req = Tuple.new
+              \{% end %}
 
-                pack(response, SimpleRpc::Error::OK, nil, res)
-            \{% end %}
-          \{% end %}
+              proto = \{{@type}}.new
+              res = begin
+                proto.\{{m.name}}(*req)
+              rescue ex
+                return ctx.write_error(SimpleRpc::Error::TASK_EXCEPTION, ex.message || "unknown error in task execution")
+              end
 
-          else
-            unless additional_http(path, body_io, response)
-              path = path[5..-1] if path.starts_with?("/rpc_")
-              pack(response, SimpleRpc::Error::UNKNOWN_METHOD, "unknown method '#{path}'")
-            end
-          end
+              return ctx.write_result(res)
           \{% end %}
+        \{% end %}
+        end
+        \{% end %}
+      end
+
+      class HttpServer
+        def handle_request(ctx)
+          \{{@type}}.handle_request(ctx)
         end
       end
 
-      class Client
+      class SocketServer
+        def handle_request(ctx)
+          \{{@type}}.handle_request(ctx)
+        end
+      end
+
+      module ClientExt
         \{% for m in @type.methods %}
           \{% if m.visibility.stringify == ":public" %}
             \{% if !m.return_type %}
@@ -71,6 +78,14 @@ module SimpleRpc::Proto
             end
           \{% end %}
         \{% end %}
+      end
+
+      class SocketClient
+        include ClientExt
+      end
+
+      class HttpClient
+        include ClientExt
       end
     end
   end

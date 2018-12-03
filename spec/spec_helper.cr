@@ -32,14 +32,14 @@ class SpecProto
     x + 1
   end
 
-  def raw_result : SimpleRpc::Server::RawMsgpack
-    SimpleRpc::Server::RawMsgpack.new({1, "bla", 6.5}.to_msgpack)
+  def raw_result : SimpleRpc::HttpServer::RawMsgpack
+    SimpleRpc::HttpServer::RawMsgpack.new({1, "bla", 6.5}.to_msgpack)
   end
 
-  def stream_result : SimpleRpc::Server::IOMsgpack
+  def stream_result : SimpleRpc::HttpServer::IOMsgpack
     bytes = {1, "bla", 6.5}.to_msgpack
     io = IO::Memory.new(bytes)
-    SimpleRpc::Server::IOMsgpack.new(io)
+    SimpleRpc::HttpServer::IOMsgpack.new(io)
   end
 
   def bin_input_args(x : Array(String), y : Float64) : String
@@ -73,11 +73,20 @@ class SpecProto2
 end
 
 spawn do
-  SpecProto::Server.new("127.0.0.1", 8888).run
+  SpecProto::HttpServer.new("127.0.0.1", 8888).run
+end
+
+spawn do
+  SpecProto::SocketServer.new("127.0.0.1", 8889).run
 end
 
 sleep 0.1
-CLIENT         = SpecProto::Client.new("127.0.0.1", 8888)
-CLIENT_TIMEOUT = SpecProto::Client.new("127.0.0.1", 8888, timeout: 0.2)
-CLIENT_BAD     = SpecProto::Client.new("127.0.0.1", 8889)
-CLIENT2        = SpecProto2::Client.new("127.0.0.1", 8888)
+HTTP_CLIENT         = SpecProto::HttpClient.new("127.0.0.1", 8888)
+HTTP_CLIENT_TIMEOUT = SpecProto::HttpClient.new("127.0.0.1", 8888, timeout: 0.2)
+HTTP_CLIENT_BAD     = SpecProto::HttpClient.new("127.0.0.1", 9999)
+HTTP_CLIENT2        = SpecProto2::HttpClient.new("127.0.0.1", 8888)
+
+SOCKET_CLIENT         = SpecProto::SocketClient.new("127.0.0.1", 8889)
+SOCKET_CLIENT_TIMEOUT = SpecProto::SocketClient.new("127.0.0.1", 8889, timeout: 0.2)
+SOCKET_CLIENT_BAD     = SpecProto::SocketClient.new("127.0.0.1", 9999)
+SOCKET_CLIENT2        = SpecProto2::SocketClient.new("127.0.0.1", 8889)

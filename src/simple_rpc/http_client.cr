@@ -1,7 +1,7 @@
-require "base64"
 require "http/client"
+require "./client"
 
-class SimpleRpc::RawClient
+class SimpleRpc::HttpClient < SimpleRpc::Client
   def initialize(@host : String, @port : Int32, @timeout : Float64? = nil, @connect_timeout : Float64? = nil)
   end
 
@@ -12,13 +12,13 @@ class SimpleRpc::RawClient
     SimpleRpc::Result(T).new(res, msg)
   end
 
-  def send_request(action, args_array)
-    resp = raw_request("/rpc_#{action}", args_array.to_msgpack) do |io|
+  private def send_request(action, args_array)
+    resp = raw_request("/rpc.msgpack", write_request(action, args_array)) do |io|
       yield io
     end
   end
 
-  def raw_request(action, body)
+  private def raw_request(action, body)
     with_client do |client|
       client.post(action, body: body) do |response|
         if response.status_code == 200
@@ -28,7 +28,7 @@ class SimpleRpc::RawClient
         end
       end
 
-      {Error::HTTP_UNKNOWN_ERROR, nil}
+      {Error::UNKNOWN_ERROR, nil}
     end
   end
 
@@ -47,7 +47,7 @@ class SimpleRpc::RawClient
   rescue IO::Timeout
     {Error::TIMEOUT, "Timeouted (#{@timeout}, #{@connect_timeout})"}
   rescue ex
-    {Error::HTTP_EXCEPTION, ex.message}
+    {Error::CONNECTION_ERROR, ex.message}
   ensure
     client.try(&.close) rescue nil
   end

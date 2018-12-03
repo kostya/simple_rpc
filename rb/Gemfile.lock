@@ -1,0 +1,17 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    cool.io (1.4.6)
+    msgpack (1.2.4)
+    msgpack-rpc (0.6.0)
+      cool.io (~> 1.4.3)
+      msgpack
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  msgpack-rpc
+
+BUNDLED WITH
+   1.12.5
