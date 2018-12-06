@@ -66,3 +66,13 @@ class MyRpc
   end
 end
 ```
+
+#### Example calling from ruby
+```ruby
+# gem 'msgpack-rpc'
+require 'msgpack/rpc'
+
+client = MessagePack::RPC::Client.new('127.0.0.1', 9000)
+result = client.call(:bla, 3, "5.5")
+p result # => 16.5
+```
