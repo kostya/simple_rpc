@@ -29,7 +29,7 @@ module SimpleRpc::Proto
                                 end.join(", ").id
                                 }})
                 rescue MessagePack::Error
-                  return ctx.write_error(SimpleRpc::Error::ERROR_UNPACK_REQUEST, "bad arguments, expected \{{m.args}}, but got something else")
+                  return ctx.write_error(SimpleRpc::Error::ERROR_UNPACK_REQUEST, "bad arguments, expected #{ \{{m.args.stringify}} }, but got something else")
                 rescue ex
                   return ctx.write_error(SimpleRpc::Error::ERROR_UNPACK_REQUEST, "failed to read from io '#{ex.message}'")
                 end
