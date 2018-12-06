@@ -60,8 +60,8 @@ class SimpleRpc::Server
   protected def load_request(from_io) : ReqType
     unpacker = MessagePack::Unpacker.new(from_io)
     token = unpacker.prefetch_token
-    return Eof.new if token.type == :EOF
-    return ReqError.new(SimpleRpc::Error::ERROR_UNPACK_REQUEST, "expected array as request") unless token.type == :ARRAY
+    return Eof.new if token.type == MessagePack::Token::Type::Eof
+    return ReqError.new(SimpleRpc::Error::ERROR_UNPACK_REQUEST, "expected array as request") unless token.type == MessagePack::Token::Type::Array
 
     size = token.size
     token.used = true
