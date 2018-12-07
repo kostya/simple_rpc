@@ -1,15 +1,15 @@
 module SimpleRpc
-  enum Error
-    OK
-    UNKNOWN_ERROR
-    HTTP_BAD_STATUS
-    ERROR_UNPACK_REQUEST
-    ERROR_UNPACK_RESPONSE
+  class Errors < Exception; end
 
-    CONNECTION_ERROR
-    TIMEOUT
+  class CommandTimeoutError < Errors; end
 
-    UNKNOWN_METHOD
-    TASK_EXCEPTION
-  end
+  class ConnectionError < Errors; end
+
+  class ConnectionLostError < ConnectionError; end
+
+  class CannotConnectError < ConnectionError; end
+
+  class RuntimeError < Errors; end
+
+  class ProtocallError < RuntimeError; end
 end

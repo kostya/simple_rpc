@@ -55,21 +55,29 @@ p result.value # => 16.5
 ```crystal
 require "simple_rpc"
 
-record Struct1, x : String, y : Hash(String, String) { include MessagePack::Serializable }
-record Struct2, q : Float64, w : Array(Tuple(Int32, String)) { include MessagePack::Serializable }
+class MyData
+  include MessagePack::Serializable
+
+  property a : Int32
+  property b : String
+  property c : Float64?
+  property d : Hash(String, String)?
+
+  @[MessagePack::Field(ignore: true)]
+  property e : Int32
+end
 
 class MyRpc 
   include SimpleRpc::Proto
 
-  def complex(data : Struct1) : Struct2
+  def complex(value : Int32) : MyData
     # ...
   end
 end
 ```
 
-#### Example calling from ruby
+#### Example calling from ruby, with gem msgpack-rpc
 ```ruby
-# gem 'msgpack-rpc'
 require 'msgpack/rpc'
 
 client = MessagePack::RPC::Client.new('127.0.0.1', 9000)

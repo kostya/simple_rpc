@@ -10,8 +10,8 @@ class MyRpc
   class SocketClient
     def jo
       res = bla(2, "4.3")
-      if res.error == SimpleRpc::Error::OK
-        res.value.not_nil! + 1
+      if res.ok?
+        res.value! + 1
       else
         0.0
       end
@@ -20,9 +20,9 @@ class MyRpc
 end
 
 spawn do
-  MyRpc::SocketServer.new("127.0.0.1", 9000).run
+  MyRpc::Server.new("127.0.0.1", 9000).run
 end
 
 sleep 0.1
-client = MyRpc::SocketClient.new("127.0.0.1", 9000)
+client = MyRpc::Client.new("127.0.0.1", 9000)
 p client.jo

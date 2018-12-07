@@ -1,98 +1,155 @@
+require "socket"
+
 class SimpleRpc::Server
+  @server : TCPServer?
+
+  def initialize(@host : String, @port : Int32)
+  end
+
   record RawMsgpack, data : Bytes
   record IOMsgpack, io : IO
 
-  record ReqError, error : Error, msg : String
-  record Request, unpacker : MessagePack::Unpacker, method : String, msgid : UInt32, args_size : Int32
-  record Notify, from_io : IO, method : String
-  record Eof
+  record Ctx, msgid : UInt32, method : String, args_count : Int32, unpacker : MessagePack::IOUnpacker, io : IO do
+    def skip_values(n)
+      n.times { unpacker.skip_value }
+    end
 
-  alias ReqType = Request | ReqError | Eof # | Notify
-
-  record Context, req : Request, to_io : IO do
-    # TODO: disable sync?
     def write_result(res)
       case res
       when RawMsgpack
-        packer = MessagePack::Packer.new(to_io)
-        packer.write_array_start(4)
+        packer = MessagePack::Packer.new(io)
+        packer.write_array_start(4_u8)
         packer.write(1_u8)
-        packer.write(req.msgid)
+        packer.write(msgid)
         packer.write(nil)
-        to_io.write(res.data)
+        io.write(res.data)
       when IOMsgpack
-        packer = MessagePack::Packer.new(to_io)
-        packer.write_array_start(4)
+        packer = MessagePack::Packer.new(io)
+        packer.write_array_start(4_u8)
         packer.write(1_u8)
-        packer.write(req.msgid)
+        packer.write(msgid)
         packer.write(nil)
-        IO.copy(res.io, to_io)
+        IO.copy(res.io, io)
       else
-        {1_u8, req.msgid, nil, res}.to_msgpack(to_io)
+        {1_u8, msgid, nil, res}.to_msgpack(io)
       end
 
-      to_io.flush
-
-      true
-    rescue
-      # skip all write errors
-    end
-
-    # TODO: disable sync?
-    def self.write_error(io, err : ReqError, msgid = 0_u32)
-      {1_u8, msgid, "#{err.error.value}|#{err.msg}", nil}.to_msgpack(io)
       io.flush
-
       true
-    rescue
-      # skip all write errors
     end
 
-    def write_error(err : ReqError)
-      Context.write_error(to_io, err, req.msgid)
-    end
-
-    def write_error(err : Error, msg : String)
-      Context.write_error(to_io, ReqError.new(err, msg), req.msgid)
+    def write_error(msg)
+      {1_u8, msgid, msg, nil}.to_msgpack(io)
+      io.flush
+      true
     end
   end
 
-  protected def load_request(from_io) : ReqType
-    unpacker = MessagePack::Unpacker.new(from_io)
-    token = unpacker.prefetch_token
-    return Eof.new if token.type == MessagePack::Token::Type::Eof
-    return ReqError.new(SimpleRpc::Error::ERROR_UNPACK_REQUEST, "expected array as request") unless token.type == MessagePack::Token::Type::Array
+  private def _request(reader_io, writer_io)
+    self.class.catch_socket_errors do
+      # any socket errors catched in handle, with just close connection
 
+      case ctx = read_context(reader_io, writer_io)
+      when Ctx
+        handle_request(ctx) || ctx.write_error("method '#{ctx.method}' not found")
+      when Nil
+        # eof
+        nil
+      when String
+        # error in protocall
+        # likely impossible branch, in normal client-server interaction
+        {1_u8, 0_u32, ctx, nil}.to_msgpack(writer_io)
+        writer_io.flush
+        nil
+      end
+    end
+  end
+
+  private def read_context(reader_io, writer_io) : Ctx | String | Nil
+    unpacker = MessagePack::IOUnpacker.new(reader_io)
+    token = unpacker.prefetch_token
+    return if token.type.eof?
+
+    return "expected array token" unless token.type.array?
     size = token.size
     token.used = true
 
     case size
-    # when 3
-    #   req_type = unpacker.read_int
-    #   if req_type == 2
-    #     method = unpacker.read_string
-    #     Notify.new(from_io, method)
-    #   else
-    #     return ReqError.new("notify req_type should eq 2")
-    #   end
+    when 3
+      return "unsupported notify message"
     when 4
-      req_type = Int8.new(unpacker)
-      if req_type == 0_i8
-        msgid = UInt32.new(unpacker)
-        method = unpacker.read_string
-        args_size = unpacker.read_array_size
-        Request.new(unpacker, method, msgid, args_size)
-      else
-        return ReqError.new(SimpleRpc::Error::ERROR_UNPACK_REQUEST, "request req_type should eq 0")
-      end
+      token = unpacker.next_token
+      id = case token.type
+           when .int?
+             token.int_value.to_i8
+           when .uint?
+             token.uint_value.to_i8
+           else
+             return "unexpected message header #{token.type}"
+           end
+      return "unexpected message request sign #{id}" unless id == 0_i8
+
+      token = unpacker.next_token
+      msgid = case token.type
+              when .int?
+                token.int_value.to_u32
+              when .uint?
+                token.uint_value.to_u32
+              else
+                return "unexpected message msgid #{token.type}"
+              end
+
+      token = unpacker.next_token
+      method = if token.type.string?
+                 token.string_value
+               else
+                 return "expected method as string, but got #{token.type}"
+               end
+
+      token = unpacker.next_token
+      args_count = if token.type.array?
+                     token.size.to_i32
+                   else
+                     return "expected array as args, but got #{token.type}"
+                   end
+
+      Ctx.new(msgid, method, args_count, unpacker, writer_io)
     else
-      return ReqError.new(SimpleRpc::Error::ERROR_UNPACK_REQUEST, "expected array with size 4, but not #{size}")
+      "unexpected array size #{size}"
     end
-  rescue ex : MessagePack::Error
-    ReqError.new(SimpleRpc::Error::ERROR_UNPACK_REQUEST, "load msgpack request #{ex.message}")
-  rescue IO::Timeout
-    ReqError.new(SimpleRpc::Error::TIMEOUT, "timeouted read request")
-  rescue
-    ReqError.new(SimpleRpc::Error::ERROR_UNPACK_REQUEST, "protocall error: load request")
+  end
+
+  def self.catch_socket_errors
+    yield
+  rescue ex : Errno | IO::Error
+    raise SimpleRpc::ConnectionLostError.new("#{ex.class}: #{ex.message}")
+  end
+
+  def handle(reader_io, writer_io)
+    reader_io.read_buffering = true if reader_io.responds_to?(:read_buffering)
+    writer_io.sync = false if writer_io.responds_to?(:sync=)
+    while !reader_io.closed? && !writer_io.closed?
+      break unless _request(reader_io, writer_io)
+    end
+  ensure
+    reader_io.close rescue nil
+    if writer_io != reader_io
+      writer_io.close rescue nil
+    end
+  end
+
+  def run
+    @server = server = TCPServer.new @host, @port
+    loop do
+      client = server.accept
+      spawn handle(client, client)
+    end
+  end
+
+  protected def handle_request(ctx : Ctx)
+  end
+
+  def close
+    @server.try(&.close) rescue nil
   end
 end

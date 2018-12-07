@@ -10,6 +10,7 @@ dependencies:
   msgpack:
     github: crystal-community/msgpack-crystal
     version: ">=0.11.1"
+    branch: tokens_unpacker
 
 development_dependencies:
   kemal:

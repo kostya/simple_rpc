@@ -3,45 +3,43 @@ require "msgpack"
 
 module SimpleRpc::Proto
   macro included
-    class HttpClient < SimpleRpc::HttpClient; end
-    class HttpServer < SimpleRpc::HttpServer; end
-    class SocketServer < SimpleRpc::SocketServer; end
-    class SocketClient < SimpleRpc::SocketClient; end
+    class Client < SimpleRpc::Client; end
+    class Server < SimpleRpc::Server; end
 
     macro finished
-      def self.handle_request(ctx : SimpleRpc::Server::Context)
+      def self.handle_request(ctx : SimpleRpc::Server::Ctx)
         \{% begin %}
-        case ctx.req.method
+        case ctx.method
         \{% for m in @type.methods %}
           \{% if m.visibility.stringify == ":public" %}
             when "\{{m.name}}"
-              args_size = \{{ m.args.size.id }}
-              return ctx.write_error(SimpleRpc::Error::ERROR_UNPACK_REQUEST, "expected #{args_size} args, but got #{ctx.req.args_size}") if ctx.req.args_size != args_size
+              args_need_count = \{{ m.args.size.id }}
+              if ctx.args_count != args_need_count
+                ctx.skip_values(ctx.args_count)
+                return ctx.write_error("bad arguments, expected #{ \{{m.args.stringify}} }, but got #{ctx.args_count} args")
+              end
 
               \{% if m.args.size > 0 %}
-                req = begin
-                  Tuple.new(\{{ m.args.map do |arg|
-                                  if arg.restriction
-                                    "#{arg.restriction}.new(ctx.req.unpacker)"
-                                  else
-                                    raise "argument '#{arg}' in method '#{m.name}' must have a type restriction"
-                                  end
-                                end.join(", ").id
-                                }})
+                c = 0
+                begin
+                  \{% for arg in m.args %}
+                    \{% if arg.restriction %}
+                      c += 1
+                      \%_var_\{{arg.id} = \{{ arg.restriction }}.new(MessagePack::TokensUnpacker.new(ctx.unpacker.read_value_as_array_of_tokens))
+                    \{% else %}
+                      \{% raise "argument '#{arg}' in method '#{m.name}' must have a type restriction" %}
+                    \{% end %}
+                  \{% end %}
                 rescue MessagePack::Error
-                  return ctx.write_error(SimpleRpc::Error::ERROR_UNPACK_REQUEST, "bad arguments, expected #{ \{{m.args.stringify}} }, but got something else")
-                rescue ex
-                  return ctx.write_error(SimpleRpc::Error::ERROR_UNPACK_REQUEST, "failed to read from io '#{ex.message}'")
+                  ctx.skip_values(ctx.args_count - c)
+                  return ctx.write_error("bad arguments, expected #{ \{{m.args.stringify}} }, but got something else")
                 end
-              \{% else %}
-                req = Tuple.new
               \{% end %}
 
-              proto = \{{@type}}.new
               res = begin
-                proto.\{{m.name}}(*req)
+                \{{@type}}.new.\{{m.name}}(\{% for arg in m.args %} \%_var_\{{arg.id}, \{% end %})
               rescue ex
-                return ctx.write_error(SimpleRpc::Error::TASK_EXCEPTION, ex.message || "unknown error in task execution")
+                return ctx.write_error("Exception in task execution: #{ex.message}")
               end
 
               return ctx.write_result(res)
@@ -51,19 +49,13 @@ module SimpleRpc::Proto
         \{% end %}
       end
 
-      class HttpServer
+      class Server
         def handle_request(ctx)
           \{{@type}}.handle_request(ctx)
         end
       end
 
-      class SocketServer
-        def handle_request(ctx)
-          \{{@type}}.handle_request(ctx)
-        end
-      end
-
-      module ClientExt
+      class Client
         \{% for m in @type.methods %}
           \{% if m.visibility.stringify == ":public" %}
             \{% if !m.return_type %}
@@ -78,14 +70,6 @@ module SimpleRpc::Proto
             end
           \{% end %}
         \{% end %}
-      end
-
-      class SocketClient
-        include ClientExt
-      end
-
-      class HttpClient
-        include ClientExt
       end
     end
   end
