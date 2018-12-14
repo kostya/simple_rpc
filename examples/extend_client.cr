@@ -7,7 +7,7 @@ class MyRpc
     x * y.to_f
   end
 
-  class SocketClient
+  class Client
     def jo
       res = bla(2, "4.3")
       if res.ok?

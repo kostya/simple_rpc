@@ -13,16 +13,11 @@ spawn do
 end
 
 sleep 0.1
-p "========="
 client = MyRpc::Client.new("127.0.0.1", 9000)
 result = client.bla(3, "5.5")
 
-p result.error # => nil
-p result.value # => 16.5
-
-sleep 0.1
-p "========="
-
-result = client.bla(3, "5.5")
-p result.error # => nil
-p result.value # => 16.5
+if result.ok?
+  p result.value! + 1 # => 17.5
+else
+  p result.message!
+end
