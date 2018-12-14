@@ -20,19 +20,19 @@ module SimpleRpc::Proto
               end
 
               \{% if m.args.size > 0 %}
-                c = 0
+                \{% for arg in m.args %}
+                  \{% if arg.restriction %}
+                    \%unpacker_\{{arg.id} = MessagePack::TokensUnpacker.new(ctx.unpacker.read_value_tokens)
+                  \{% else %}
+                    \{% raise "argument '#{arg}' in method '#{m.name}' must have a type restriction" %}
+                  \{% end %}
+                \{% end %}
+
                 begin
                   \{% for arg in m.args %}
-                    \{% if arg.restriction %}
-                      c += 1
-                      value_unpacker = MessagePack::TokensUnpacker.new(ctx.unpacker.read_value_tokens)
-                      \%_var_\{{arg.id} = \{{ arg.restriction }}.new(value_unpacker)
-                    \{% else %}
-                      \{% raise "argument '#{arg}' in method '#{m.name}' must have a type restriction" %}
-                    \{% end %}
+                      \%_var_\{{arg.id} = \{{ arg.restriction }}.new(\%unpacker_\{{arg.id})
                   \{% end %}
                 rescue MessagePack::Error
-                  ctx.skip_values(ctx.args_count - c)
                   return ctx.write_error("bad arguments, expected #{ \{{m.args.stringify}} }, but got something else")
                 end
               \{% end %}
