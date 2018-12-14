@@ -89,16 +89,33 @@ spawn do
   SpecProto::Server.new("127.0.0.1", 8888).run
 end
 
+def bad_server_handle(client)
+  t = Tuple(Int8, UInt32, String, Array(MessagePack::Type)).from_msgpack(client)
+  client.write_byte(193_u8) # write illegal msgpack value
+  client.flush
+end
+
+spawn do
+  bad_server = TCPServer.new("127.0.0.1", 8889)
+  loop do
+    cli = bad_server.accept
+    spawn bad_server_handle(cli)
+  end
+end
+
 sleep 0.1
+
 CLIENT         = SpecProto::Client.new("127.0.0.1", 8888)
 CLIENT_TIMEOUT = SpecProto::Client.new("127.0.0.1", 8888, command_timeout: 0.2)
 CLIENT_BAD     = SpecProto::Client.new("127.0.0.1", 9999)
 CLIENT2        = SpecProto2::Client.new("127.0.0.1", 8888)
+CLIENT3        = SpecProto2::Client.new("127.0.0.1", 8889)
 
 PER_CLIENT         = SpecProto::Client.new("127.0.0.1", 8888, mode: SimpleRpc::Client::Mode::ConnectPerRequest)
 PER_CLIENT_TIMEOUT = SpecProto::Client.new("127.0.0.1", 8888, command_timeout: 0.2, mode: SimpleRpc::Client::Mode::ConnectPerRequest)
 PER_CLIENT_BAD     = SpecProto::Client.new("127.0.0.1", 9999, mode: SimpleRpc::Client::Mode::ConnectPerRequest)
 PER_CLIENT2        = SpecProto2::Client.new("127.0.0.1", 8888, mode: SimpleRpc::Client::Mode::ConnectPerRequest)
+PER_CLIENT3        = SpecProto2::Client.new("127.0.0.1", 8889, mode: SimpleRpc::Client::Mode::ConnectPerRequest)
 
 PIP1 = IO::Stapled.new(*IO.pipe)
 PIP2 = IO::Stapled.new(*IO.pipe)
