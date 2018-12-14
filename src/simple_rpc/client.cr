@@ -121,6 +121,10 @@ class SimpleRpc::Client
     end
 
     msgid
+  rescue ex : MessagePack::UnpackException
+    # still possible invalid symbol in msgpack, or just wrong server like http
+    # so need to catch it
+    raise SimpleRpc::ProtocallError.new(ex.message)
   end
 
   def self.catch_socket_errors

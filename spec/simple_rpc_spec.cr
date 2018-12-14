@@ -1,4 +1,5 @@
 require "./spec_helper"
+require "http/client"
 
 describe SimpleRpc do
   {% for prefix in ["", "PER_"] %}
@@ -190,6 +191,30 @@ describe SimpleRpc do
     end
   end
   {% end %}
+
+  it "http/client trying connect to server" do
+    expect_raises(Exception) do
+      HTTP::Client.get("http://127.0.0.1:8888/bla")
+    end
+
+    # after request usual request just work
+    res = CLIENT.bla("3.5", 9.6)
+    res.ok?.should eq true
+    res.value!.should eq 33.6
+  end
+
+  it "raw socket_client trying connect to server" do
+    sock = TCPSocket.new("127.0.0.1", 8888)
+    [193, 199, 200, 201, 212, 213, 214, 215, 216].each { |bt| sock.write_byte(bt.to_u8) } # unsupported by msgpack symbols
+
+    # after request usual request just work
+    res = CLIENT.bla("3.5", 9.6)
+    res.ok?.should eq true
+    res.value!.should eq 33.6
+  end
+
+  it "CLIENT connection to fake socket" do
+  end
 
   it "ok work with FAKE CLIENT and FAKE SERVER" do
     res = IOCLIENT.bla("3.5", 9.6)

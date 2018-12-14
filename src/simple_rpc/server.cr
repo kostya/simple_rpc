@@ -11,7 +11,11 @@ class SimpleRpc::Server
 
   record Ctx, msgid : UInt32, method : String, args_count : Int32, unpacker : MessagePack::IOUnpacker, io : IO do
     def skip_values(n)
-      n.times { unpacker.skip_value }
+      n.times do
+        unpacker.skip_value
+      end
+      # rescue MessagePack::UnpackException
+      # not catching this, becase in exception connection would be just closed
     end
 
     def write_result(res)
@@ -67,12 +71,11 @@ class SimpleRpc::Server
 
   private def read_context(reader_io, writer_io) : Ctx | String | Nil
     unpacker = MessagePack::IOUnpacker.new(reader_io)
-    token = unpacker.prefetch_token
+    token = unpacker.next_token
     return if token.type.eof?
 
     return "expected array token" unless token.type.array?
     size = token.size
-    token.used = true
 
     case size
     when 3
@@ -117,6 +120,9 @@ class SimpleRpc::Server
     else
       "unexpected array size #{size}"
     end
+  rescue ex : MessagePack::UnpackException
+    # still possible to read bad messages from socket
+    ex.message || "unpack exception"
   end
 
   def self.catch_socket_errors

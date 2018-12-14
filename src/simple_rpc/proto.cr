@@ -25,7 +25,8 @@ module SimpleRpc::Proto
                   \{% for arg in m.args %}
                     \{% if arg.restriction %}
                       c += 1
-                      \%_var_\{{arg.id} = \{{ arg.restriction }}.new(MessagePack::TokensUnpacker.new(ctx.unpacker.read_value_as_array_of_tokens))
+                      value_unpacker = MessagePack::TokensUnpacker.new(ctx.unpacker.read_value_tokens)
+                      \%_var_\{{arg.id} = \{{ arg.restriction }}.new(value_unpacker)
                     \{% else %}
                       \{% raise "argument '#{arg}' in method '#{m.name}' must have a type restriction" %}
                     \{% end %}
