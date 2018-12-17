@@ -83,45 +83,41 @@ class SimpleRpc::Client
   end
 
   def read_msg_id(unpacker) : String | UInt32
-    token = unpacker.next_token
-    raise SimpleRpc::ProtocallError.new("unexpected result type: #{token.type}") unless token.type.array?
+    token = unpacker.read_token
+    raise SimpleRpc::ProtocallError.new("unexpected result type: #{token.inspect}") unless token.is_a?(MessagePack::Token::ArrayT)
     size = token.size
     raise SimpleRpc::ProtocallError.new("unexpected result array size #{size}") unless size == 4
 
-    token = unpacker.next_token
-    id = case token.type
-         when .int?
-           token.int_value.to_i8
-         when .uint?
-           token.uint_value.to_i8
+    token = unpacker.read_token
+    id = case token
+         when MessagePack::Token::IntT
+           token.value.to_i8
          else
-           raise SimpleRpc::ProtocallError.new("unexpected message header #{token.type}")
+           raise SimpleRpc::ProtocallError.new("unexpected message header #{token.inspect}")
          end
     raise SimpleRpc::ProtocallError.new("unexpected message response sign #{id}") unless id == 1_i8
 
-    token = unpacker.next_token
-    msgid = case token.type
-            when .int?
-              token.int_value.to_u32
-            when .uint?
-              token.uint_value.to_u32
+    token = unpacker.read_token
+    msgid = case token
+            when MessagePack::Token::IntT
+              token.value.to_u32
             else
-              raise SimpleRpc::ProtocallError.new("unexpected message msgid #{token.type}")
+              raise SimpleRpc::ProtocallError.new("unexpected message msgid #{token.inspect}")
             end
 
-    token = unpacker.next_token
-    case token.type
-    when .null?
-    when .string?
-      msg = token.string_value
-      unpacker.next_token # skip nil result
+    token = unpacker.read_token
+    case token
+    when MessagePack::Token::NullT
+    when MessagePack::Token::StringT
+      msg = token.value
+      unpacker.read_token # skip nil result
       raise SimpleRpc::RuntimeError.new(msg)
     else
-      raise SimpleRpc::ProtocallError.new("unexpected message error #{token.type}")
+      raise SimpleRpc::ProtocallError.new("unexpected message error #{token.inspect}")
     end
 
     msgid
-  rescue ex : MessagePack::UnpackException
+  rescue ex : MessagePack::UnpackError
     # still possible invalid symbol in msgpack, or just wrong server like http
     # so need to catch it
     raise SimpleRpc::ProtocallError.new(ex.message)

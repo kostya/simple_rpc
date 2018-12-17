@@ -9,7 +9,7 @@ class SimpleRpc::Server
   record RawMsgpack, data : Bytes
   record IOMsgpack, io : IO
 
-  record Ctx, msgid : UInt32, method : String, args_count : Int32, unpacker : MessagePack::IOUnpacker, io : IO do
+  record Ctx, msgid : UInt32, method : String, args_count : UInt32, unpacker : MessagePack::IOUnpacker, io : IO do
     def skip_values(n)
       n.times do
         unpacker.skip_value
@@ -71,56 +71,53 @@ class SimpleRpc::Server
 
   private def read_context(reader_io, writer_io) : Ctx | String | Nil
     unpacker = MessagePack::IOUnpacker.new(reader_io)
-    token = unpacker.next_token
-    return if token.type.eof?
+    token = unpacker.read_token
 
-    return "expected array token" unless token.type.array?
+    return "expected array token" unless token.is_a?(MessagePack::Token::ArrayT)
     size = token.size
 
     case size
     when 3
       return "unsupported notify message"
     when 4
-      token = unpacker.next_token
-      id = case token.type
-           when .int?
-             token.int_value.to_i8
-           when .uint?
-             token.uint_value.to_i8
+      token = unpacker.read_token
+      id = case token
+           when MessagePack::Token::IntT
+             token.value.to_i8
            else
-             return "unexpected message header #{token.type}"
+             return "unexpected message header #{token.inspect}"
            end
       return "unexpected message request sign #{id}" unless id == 0_i8
 
-      token = unpacker.next_token
-      msgid = case token.type
-              when .int?
-                token.int_value.to_u32
-              when .uint?
-                token.uint_value.to_u32
+      token = unpacker.read_token
+      msgid = case token
+              when MessagePack::Token::IntT
+                token.value.to_u32
               else
-                return "unexpected message msgid #{token.type}"
+                return "unexpected message msgid #{token.inspect}"
               end
 
-      token = unpacker.next_token
-      method = if token.type.string?
-                 token.string_value
+      token = unpacker.read_token
+      method = case token
+               when MessagePack::Token::StringT
+                 token.value
                else
-                 return "expected method as string, but got #{token.type}"
+                 return "expected method as string, but got #{token.inspect}"
                end
 
-      token = unpacker.next_token
-      args_count = if token.type.array?
-                     token.size.to_i32
+      token = unpacker.read_token
+      args_count = case token
+                   when MessagePack::Token::ArrayT
+                     token.size
                    else
-                     return "expected array as args, but got #{token.type}"
+                     return "expected array as args, but got #{token.inspect}"
                    end
 
       Ctx.new(msgid, method, args_count, unpacker, writer_io)
     else
       "unexpected array size #{size}"
     end
-  rescue ex : MessagePack::UnpackException
+  rescue ex : MessagePack::UnexpectedByteError
     # still possible to read bad messages from socket
     ex.message || "unpack exception"
   end
@@ -137,6 +134,7 @@ class SimpleRpc::Server
     while !reader_io.closed? && !writer_io.closed?
       break unless _request(reader_io, writer_io)
     end
+  rescue MessagePack::EofError
   ensure
     reader_io.close rescue nil
     if writer_io != reader_io

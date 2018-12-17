@@ -21,7 +21,7 @@ module SimpleRpc::Proto
 
               \{% if m.args.size > 0 %}
                 \{% for arg in m.args %}
-                  \%unpacker_\{{arg.id} = MessagePack::TokensUnpacker.new(ctx.unpacker.read_value_tokens)
+                  \%unpacker_\{{arg.id} = MessagePack::NodeUnpacker.new(ctx.unpacker.read_node)
                 \{% end %}
 
                 begin
@@ -32,7 +32,7 @@ module SimpleRpc::Proto
                       \{% raise "argument '#{arg}' in method '#{m.name}' must have a type restriction" %}
                     \{% end %}
                   \{% end %}
-                rescue MessagePack::Error
+                rescue MessagePack::TypeCastError
                   return ctx.write_error("bad arguments, expected #{ \{{m.args.stringify}} }, but got something else")
                 end
               \{% end %}

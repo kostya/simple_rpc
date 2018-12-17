@@ -214,7 +214,7 @@ describe SimpleRpc do
     it "connection to bad server" do
       res = {{prefix.id}}CLIENT3.request(Float64, :bla, "3.5", 9.6)
       res.ok?.should eq false
-      res.message!.should start_with("SimpleRpc::ProtocallError: Unexpected byte '193' at 1")
+      res.message!.should start_with("SimpleRpc::ProtocallError: Unexpected byte '193' at 0")
     end
   end
   {% end %}
