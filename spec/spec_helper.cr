@@ -45,14 +45,14 @@ class SpecProto
     x + 1
   end
 
-  def raw_result : SimpleRpc::Server::RawMsgpack
-    SimpleRpc::Server::RawMsgpack.new({1, "bla", 6.5}.to_msgpack)
+  def raw_result : SimpleRpc::Context::RawMsgpack
+    SimpleRpc::Context::RawMsgpack.new({1, "bla", 6.5}.to_msgpack)
   end
 
-  def stream_result : SimpleRpc::Server::IOMsgpack
+  def stream_result : SimpleRpc::Context::IOMsgpack
     bytes = {1, "bla", 6.5}.to_msgpack
     io = IO::Memory.new(bytes)
-    SimpleRpc::Server::IOMsgpack.new(io)
+    SimpleRpc::Context::IOMsgpack.new(io)
   end
 
   def bin_input_args(x : Array(String), y : Float64) : String

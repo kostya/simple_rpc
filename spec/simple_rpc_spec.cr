@@ -19,7 +19,7 @@ describe SimpleRpc do
     it "error raw request" do
       res = {{prefix.id}}CLIENT.request(String, :bla, "3.5", 9.6)
       res.ok?.should eq false
-      res.message!.should eq "SimpleRpc::ProtocallError: unexpected type of result type, expected String"
+      res.message!.should eq "SimpleRpc::TypeCastError: Receive unexpected result type, expected String"
       res.value.should eq nil
     end
 

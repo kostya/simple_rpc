@@ -11,5 +11,7 @@ module SimpleRpc
 
   class RuntimeError < Errors; end
 
-  class ProtocallError < RuntimeError; end
+  class ProtocallError < Errors; end
+
+  class TypeCastError < Errors; end
 end

@@ -7,7 +7,7 @@ module SimpleRpc::Proto
     class Server < SimpleRpc::Server; end
 
     macro finished
-      def self.handle_request(ctx : SimpleRpc::Server::Ctx)
+      def self.handle_request(ctx : SimpleRpc::Context)
         \{% begin %}
         case ctx.method
         \{% for m in @type.methods %}

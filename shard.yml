@@ -9,7 +9,7 @@ crystal: 0.26.0
 dependencies:
   msgpack:
     github: crystal-community/msgpack-crystal
-    version: ">=0.13.0"
+    version: ">=0.13.1"
 
 development_dependencies:
   kemal:
