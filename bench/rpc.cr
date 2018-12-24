@@ -13,13 +13,14 @@ spawn do
 end
 
 sleep 0.5
-mode = (ARGV[0]? == "1") ? SimpleRpc::Client::Mode::ConnectPerRequest : SimpleRpc::Client::Mode::Persistent
-p "running in mode #{mode}"
+N = (ARGV[0]? || 1000).to_i
+mode = (ARGV[1]? == "1") ? SimpleRpc::Client::Mode::ConnectPerRequest : SimpleRpc::Client::Mode::Persistent
+p "running in mode #{mode}, for #{N}"
 
 client = Bench::Client.new("127.0.0.1", 9002, mode: mode)
 t = Time.now
 s = 0
-1000.times do |i|
+N.times do |i|
   res = client.inc(i)
   s += res.value! if res.ok?
 end
