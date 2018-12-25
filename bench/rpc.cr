@@ -22,7 +22,11 @@ t = Time.now
 s = 0
 N.times do |i|
   res = client.inc(i)
-  s += res.value! if res.ok?
+  if res.ok?
+    s += res.value!
+  else
+    raise res.message!
+  end
 end
 
 p s
