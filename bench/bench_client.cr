@@ -10,9 +10,11 @@ mode = (ARGV[2]? == "1") ? SimpleRpc::Client::Mode::ConnectPerRequest : SimpleRp
 
 puts "Running in #{mode}, requests: #{REQUESTS}, concurrency: #{CONCURRENCY}"
 
-ch = Channel(Float64).new
+ch = Channel(Bool).new
 
 n = 0
+s = 0.0
+t = Time.now
 
 CONCURRENCY.times do |i|
   spawn do
@@ -21,18 +23,15 @@ CONCURRENCY.times do |i|
       n += 1
       res = client.request(Float64, :doit, 1 / n.to_f)
       if res.ok?
-        ch.send(res.value!)
+        s += res.value!
       else
         raise res.message!
       end
     end
+    ch.send(true)
   end
 end
 
-s = 0.0
-t = Time.now
-REQUESTS.times do
-  s += ch.receive
-end
+CONCURRENCY.times { ch.receive }
 p s
 p Time.now - t
