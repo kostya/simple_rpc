@@ -41,12 +41,9 @@ class SimpleRpc::Server
       ctx = read_context(reader_io, writer_io)
       handle_request(ctx) || ctx.write_error("method '#{ctx.method}' not found")
     end
-
   rescue ex : Errno | IO::Error | Socket::Error | MessagePack::TypeCastError | MessagePack::UnexpectedByteError
     debug(ex.message)
-
   rescue ex : MessagePack::EofError
-
   ensure
     reader_io.close rescue nil
     if writer_io != reader_io
