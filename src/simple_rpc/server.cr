@@ -27,7 +27,9 @@ class SimpleRpc::Server
     # size = 3, notify message
     # size = 4, request
 
-    if size == 3 || size == 4
+    notify = (size == 3)
+
+    if notify || size == 4
       token = unpacker.read_token
       id = case token
            when MessagePack::Token::IntT
@@ -36,23 +38,23 @@ class SimpleRpc::Server
              return "unexpected message header #{token.inspect}"
            end
 
-      if size == 4
+      unless notify
         return "unexpected message request sign #{id}" unless id == 0_i8
       else
         return "unexpected message notify sign #{id}" unless id == 2_i8
       end
 
-      msgid = if size == 4
-                token = unpacker.read_token
-                case token
-                when MessagePack::Token::IntT
-                  token.value.to_u32
-                else
-                  return "unexpected message msgid #{token.inspect}"
-                end
-              else
-                0_u32
-              end
+      msgid = unless notify
+        token = unpacker.read_token
+        case token
+        when MessagePack::Token::IntT
+          token.value.to_u32
+        else
+          return "unexpected message msgid #{token.inspect}"
+        end
+      else
+        0_u32
+      end
 
       token = unpacker.read_token
       method = case token
@@ -70,7 +72,7 @@ class SimpleRpc::Server
                      return "expected array as args, but got #{token.inspect}"
                    end
 
-      Context.new(msgid, method, args_count, unpacker, writer_io, size == 3)
+      Context.new(msgid, method, args_count, unpacker, writer_io, notify)
     else
       "unexpected array size #{size}"
     end
