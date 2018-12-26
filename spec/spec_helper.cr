@@ -123,7 +123,7 @@ class SpecProto2
 end
 
 spawn do
-  SpecProto::Server.new("127.0.0.1", 8888).run
+  SpecProto::Server.new("127.0.0.1", 8888, false).run
 end
 
 def bad_server_handle(client)
@@ -158,7 +158,7 @@ PIP1 = IO::Stapled.new(*IO.pipe)
 PIP2 = IO::Stapled.new(*IO.pipe)
 
 # FAKE server
-fake_server = SpecProto::Server.new("127.0.0.1", 8888)
+fake_server = SpecProto::Server.new("127.0.0.1", 8888, false)
 spawn do
   fake_server.handle(PIP1, PIP2)
 end

@@ -3,79 +3,34 @@ require "socket"
 class SimpleRpc::Server
   @server : TCPServer?
 
-  def initialize(@host : String, @port : Int32)
-  end
-
-  private def request(reader_io, writer_io)
-    case ctx = read_context(reader_io, writer_io)
-    when Context
-      handle_request(ctx) || ctx.write_error("method '#{ctx.method}' not found")
-    when String
-      writer_io.puts("Unsupport protocall: #{ctx}")
-      writer_io.flush
-      nil
-    end
+  def initialize(@host : String, @port : Int32, @debug = false)
   end
 
   private def read_context(reader_io, writer_io) : Context | String
     unpacker = MessagePack::IOUnpacker.new(reader_io)
-    token = unpacker.read_token
+    size = unpacker.read_array_size
+    unpacker.finish_token!
 
-    return "expected array" unless token.is_a?(MessagePack::Token::ArrayT)
-    size = token.size
-
-    # size = 3, notify message
-    # size = 4, request
-
-    notify = (size == 3)
-
-    if notify || size == 4
-      token = unpacker.read_token
-      id = case token
-           when MessagePack::Token::IntT
-             token.value.to_i8
-           else
-             return "unexpected message header #{token.inspect}"
-           end
-
-      unless notify
-        return "unexpected message request sign #{id}" unless id == 0_i8
-      else
-        return "unexpected message notify sign #{id}" unless id == 2_i8
-      end
-
-      msgid = unless notify
-        token = unpacker.read_token
-        case token
-        when MessagePack::Token::IntT
-          token.value.to_u32
-        else
-          return "unexpected message msgid #{token.inspect}"
-        end
-      else
-        0_u32
-      end
-
-      token = unpacker.read_token
-      method = case token
-               when MessagePack::Token::StringT
-                 token.value
-               else
-                 return "expected method as string, but got #{token.inspect}"
-               end
-
-      token = unpacker.read_token
-      args_count = case token
-                   when MessagePack::Token::ArrayT
-                     token.size
-                   else
-                     return "expected array as args, but got #{token.inspect}"
-                   end
-
-      Context.new(msgid, method, args_count, unpacker, writer_io, notify)
-    else
-      "unexpected array size #{size}"
+    request = (size == 4)
+    unless request || size == 3
+      raise MessagePack::TypeCastError.new("Unexpected request array size, should be 3 or 4, not #{size}")
     end
+
+    id = Int8.new(unpacker)
+
+    if request
+      raise MessagePack::TypeCastError.new("Unexpected message request sign #{id}") unless id == 0_i8
+    else
+      raise MessagePack::TypeCastError.new("Unexpected message notify sign #{id}") unless id == 2_i8
+    end
+
+    msgid = request ? UInt32.new(unpacker) : 0_u32
+    method = String.new(unpacker)
+
+    args_count = unpacker.read_array_size
+    unpacker.finish_token!
+
+    Context.new(msgid, method, args_count, unpacker, writer_io, !request)
   end
 
   def handle(reader_io, writer_io)
@@ -83,17 +38,24 @@ class SimpleRpc::Server
     writer_io.sync = false if writer_io.responds_to?(:sync=)
 
     loop do
-      break unless request(reader_io, writer_io)
+      ctx = read_context(reader_io, writer_io)
+      handle_request(ctx) || ctx.write_error("method '#{ctx.method}' not found")
     end
-  rescue ex : Errno | IO::Error | Socket::Error | MessagePack::EofError | MessagePack::UnexpectedByteError
-    # on any socket errors, just silently close connection
-    # TODO: maybe need to log it
+
+  rescue ex : Errno | IO::Error | Socket::Error | MessagePack::TypeCastError | MessagePack::UnexpectedByteError
+    debug(ex.message)
+
+  rescue ex : MessagePack::EofError
 
   ensure
     reader_io.close rescue nil
     if writer_io != reader_io
       writer_io.close rescue nil
     end
+  end
+
+  private def debug(msg)
+    puts(msg) if @debug
   end
 
   def run
