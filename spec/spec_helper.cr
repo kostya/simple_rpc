@@ -102,6 +102,13 @@ class SpecProto
       false
     end
   end
+
+  class_property notify_count = 0
+
+  def notify(x : Int32) : Nil
+    @@notify_count += x
+    nil
+  end
 end
 
 class SpecProto2

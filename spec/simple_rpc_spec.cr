@@ -308,6 +308,25 @@ describe SimpleRpc do
       res.ok?.should eq false
       res.message!.should start_with("SimpleRpc::ProtocallError: Unexpected byte '193' at 0")
     end
+
+    it "Notify messages also works" do
+      SpecProto.notify_count = 0
+      SpecProto.notify_count.should eq 0
+
+      sock = TCPSocket.new("127.0.0.1", 8888)
+      {2_i8, "notify", [5]}.to_msgpack(sock)
+      sock.flush
+
+      sleep 0.001
+      SpecProto.notify_count.should eq 5
+
+      sock = TCPSocket.new("127.0.0.1", 8888)
+      {2_i8, "notify", [10]}.to_msgpack(sock)
+      sock.flush
+
+      sleep 0.001
+      SpecProto.notify_count.should eq 15
+    end
   end
   {% end %}
 
