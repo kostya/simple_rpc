@@ -3,7 +3,7 @@ require "socket"
 class SimpleRpc::Server
   @server : TCPServer?
 
-  def initialize(@host : String, @port : Int32, @debug = false)
+  def initialize(@host : String, @port : Int32, @debug = false, @close_connection_after_request = false)
   end
 
   private def read_context(reader_io, writer_io) : Context | String
@@ -40,6 +40,7 @@ class SimpleRpc::Server
     loop do
       ctx = read_context(reader_io, writer_io)
       handle_request(ctx) || ctx.write_error("method '#{ctx.method}' not found")
+      break if @close_connection_after_request
     end
   rescue ex : Errno | IO::Error | Socket::Error | MessagePack::TypeCastError | MessagePack::UnexpectedByteError
     debug(ex.message)
