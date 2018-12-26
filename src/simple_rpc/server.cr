@@ -98,5 +98,6 @@ class SimpleRpc::Server
 
   def close
     @server.try(&.close) rescue nil
+    @server = nil
   end
 end

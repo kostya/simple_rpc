@@ -122,6 +122,43 @@ describe SimpleRpc do
       res.value.should eq({1, "bla", 6.5})
     end
 
+    context "invariants" do
+      it "int" do
+        res = {{prefix.id}}CLIENT.request(MessagePack::Type, :invariants, 0)
+        res.ok?.should eq true
+        v = res.value!
+        v.as(Int64).should eq 1
+      end
+
+      it "string" do
+        res = {{prefix.id}}CLIENT.request(MessagePack::Type, :invariants, 1)
+        res.ok?.should eq true
+        v = res.value!
+        v.as(String).should eq "1"
+      end
+
+      it "float" do
+        res = {{prefix.id}}CLIENT.request(MessagePack::Type, :invariants, 2)
+        res.ok?.should eq true
+        v = res.value!
+        v.as(Float64).should eq 5.5
+      end
+
+      it "array" do
+        res = {{prefix.id}}CLIENT.request(MessagePack::Type, :invariants, 3)
+        res.ok?.should eq true
+        v = res.value!
+        v.as(Array(MessagePack::Type)).should eq [0, 1, 2]
+      end
+
+      it "bool" do
+        res = {{prefix.id}}CLIENT.request(MessagePack::Type, :invariants, 4)
+        res.ok?.should eq true
+        v = res.value!
+        v.as(Bool).should eq false
+      end
+    end
+
     it "sequence of requests" do
       f = 0.0
 
@@ -203,7 +240,7 @@ describe SimpleRpc do
 
     it "raw socket_client trying connect to server" do
       sock = TCPSocket.new("127.0.0.1", 8888)
-      [193, 199, 200, 201, 212, 213, 214, 215, 216].each { |bt| sock.write_byte(bt.to_u8) } # unsupported by msgpack symbols
+      sock.write_byte(193.to_u8) # unsupported by msgpack symbol
 
       # after request usual request just work
       res = {{prefix.id}}CLIENT.bla("3.5", 9.6)

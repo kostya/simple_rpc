@@ -72,6 +72,21 @@ class SpecProto
     end
     h
   end
+
+  def invariants(x : Int32) : MessagePack::Type
+    case x
+    when 0
+      1_i64
+    when 1
+      "1"
+    when 2
+      5.5
+    when 3
+      Array.new(3) { |i| i.to_i64.as(MessagePack::Type) }
+    else
+      false
+    end.as(MessagePack::Type)
+  end
 end
 
 class SpecProto2

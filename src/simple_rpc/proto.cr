@@ -1,4 +1,3 @@
-require "http/server"
 require "msgpack"
 
 module SimpleRpc::Proto

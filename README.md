@@ -43,11 +43,8 @@ end
 #### When client code have no access to server proto, you can call raw requests:
 ```crystal
 require "simple_rpc"
-class MyRpc 
-  include SimpleRpc::Proto
-end
 
-client = MyRpc::Client.new("127.0.0.1", 9000)
+client = SimpleRpc::Client.new("127.0.0.1", 9000)
 result = client.request(Float64, :bla, 3, "5.5")
 
 if result.ok?
@@ -57,7 +54,7 @@ else
 end
 ```
 
-#### If you want to exchange complex data types, you should include MessagePack::Serializable
+#### If you want to exchange complex data types, you can include MessagePack::Serializable
 ```crystal
 require "simple_rpc"
 
@@ -66,23 +63,22 @@ class MyData
 
   property a : Int32
   property b : String
-  property c : Float64?
-  property d : Hash(String, String)?
+  property c : Hash(String, String)?
 
   @[MessagePack::Field(ignore: true)]
-  property e : Int32
+  property d : Int32?
 end
 
 class MyRpc 
   include SimpleRpc::Proto
 
-  def complex(value : Int32) : MyData
+  def complex(data : MyData) : Bool
     # ...
   end
 end
 ```
 
-#### Example calling from ruby, with gem msgpack-rpc
+#### Example calling from Ruby, with gem msgpack-rpc
 ```ruby
 require 'msgpack/rpc'
 
