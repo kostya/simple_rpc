@@ -1,4 +1,5 @@
-record SimpleRpc::Context, msgid : UInt32, method : String, args_count : UInt32, unpacker : MessagePack::IOUnpacker, io : IO do
+record SimpleRpc::Context, msgid : UInt32, method : String, args_count : UInt32,
+  unpacker : MessagePack::IOUnpacker, io : IO, notify : Bool do
   record RawMsgpack, data : Bytes
   record IOMsgpack, io : IO
 
@@ -7,6 +8,8 @@ record SimpleRpc::Context, msgid : UInt32, method : String, args_count : UInt32,
   end
 
   def write_result(res)
+    return true if notify
+
     case res
     when RawMsgpack
       packer = MessagePack::Packer.new(io)
@@ -31,6 +34,8 @@ record SimpleRpc::Context, msgid : UInt32, method : String, args_count : UInt32,
   end
 
   def write_error(msg)
+    return true if notify
+
     {1_u8, msgid, msg, nil}.to_msgpack(io)
     io.flush
     true
