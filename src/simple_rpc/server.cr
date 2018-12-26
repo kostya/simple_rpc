@@ -6,7 +6,7 @@ class SimpleRpc::Server
   def initialize(@host : String, @port : Int32, @debug = false, @close_connection_after_request = false)
   end
 
-  private def read_context(reader_io, writer_io) : Context | String
+  private def read_context(reader_io, writer_io) : Context
     unpacker = MessagePack::IOUnpacker.new(reader_io)
     size = unpacker.read_array_size
     unpacker.finish_token!
