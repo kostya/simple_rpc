@@ -87,6 +87,21 @@ class SpecProto
       false
     end.as(MessagePack::Type)
   end
+
+  def unions(x : Int32 | String) : Int32 | String | Float64 | Array(Int32) | Bool
+    case x.to_i
+    when 0
+      1
+    when 1
+      "1"
+    when 2
+      5.5
+    when 3
+      [1, 2, 3]
+    else
+      false
+    end
+  end
 end
 
 class SpecProto2

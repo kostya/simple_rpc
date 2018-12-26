@@ -26,7 +26,7 @@ module SimpleRpc::Proto
                 begin
                   \{% for arg in m.args %}
                     \{% if arg.restriction %}
-                      \%_var_\{{arg.id} = \{{ arg.restriction }}.new(\%unpacker_\{{arg.id})
+                      \%_var_\{{arg.id} = Union(\{{ arg.restriction }}).new(\%unpacker_\{{arg.id})
                     \{% else %}
                       \{% raise "argument '#{arg}' in method '#{m.name}' must have a type restriction" %}
                     \{% end %}

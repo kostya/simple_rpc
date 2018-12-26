@@ -159,6 +159,61 @@ describe SimpleRpc do
       end
     end
 
+    context "unions" do
+      it "int" do
+        res = {{prefix.id}}CLIENT.request(Int32, :unions, 0)
+        res.ok?.should eq true
+        res.value!.should eq 1
+
+        res = {{prefix.id}}CLIENT.request(Int32, :unions, "0")
+        res.ok?.should eq true
+        res.value!.should eq 1
+
+        res = {{prefix.id}}CLIENT.request(Int32, :unions, 1.2)
+        res.message!.should eq "SimpleRpc::RuntimeError: bad arguments, expected [x : Int32 | String], but got something else"
+      end
+
+      it "string" do
+        res = {{prefix.id}}CLIENT.request(String, :unions, 1)
+        res.ok?.should eq true
+        res.value!.should eq "1"
+
+        res = {{prefix.id}}CLIENT.request(String, :unions, "1")
+        res.ok?.should eq true
+        res.value!.should eq "1"
+      end
+
+      it "float" do
+        res = {{prefix.id}}CLIENT.request(Float64, :unions, 2)
+        res.ok?.should eq true
+        res.value!.should eq 5.5
+
+        res = {{prefix.id}}CLIENT.request(Float64, :unions, "2")
+        res.ok?.should eq true
+        res.value!.should eq 5.5
+      end
+
+      it "array" do
+        res = {{prefix.id}}CLIENT.request(Array(Int32), :unions, 3)
+        res.ok?.should eq true
+        res.value!.should eq [1, 2, 3]
+
+        res = {{prefix.id}}CLIENT.request(Array(Int32), :unions, "3")
+        res.ok?.should eq true
+        res.value!.should eq [1, 2, 3]
+      end
+
+      it "bool" do
+        res = {{prefix.id}}CLIENT.request(Bool, :unions, 4)
+        res.ok?.should eq true
+        res.value!.should eq false
+
+        res = {{prefix.id}}CLIENT.request(Bool, :unions, "4")
+        res.ok?.should eq true
+        res.value!.should eq false
+      end
+    end
+
     it "sequence of requests" do
       f = 0.0
 
