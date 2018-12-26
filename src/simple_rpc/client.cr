@@ -69,23 +69,18 @@ class SimpleRpc::Client
 
     # read request from server
     res = catch_connection_errors do
-      unpacker = MessagePack::IOUnpacker.new(socket)
-      case msg = read_msg_id(unpacker)
-      when UInt32
+      begin
+        unpacker = MessagePack::IOUnpacker.new(socket)
+        msg = read_msg_id(unpacker)
         unless msgid == msg
           close
           raise SimpleRpc::ProtocallError.new("unexpected msgid: expected #{msgid}, but got #{msg}")
         end
-      else
-        close
-        raise SimpleRpc::ProtocallError.new(msg.to_s)
-      end
 
-      begin
         yield(MessagePack::NodeUnpacker.new(unpacker.read_node))
-      rescue MessagePack::UnexpectedByteError
+      rescue ex : MessagePack::TypeCastError | MessagePack::UnexpectedByteError
         close
-        raise SimpleRpc::ProtocallError.new("unexpected msgpack byte while unpacking result")
+        raise SimpleRpc::ProtocallError.new(ex.message)
       end
     end
 
@@ -119,43 +114,26 @@ class SimpleRpc::Client
     io.flush
   end
 
-  private def read_msg_id(unpacker) : String | UInt32
-    token = unpacker.read_token
-    return "unexpected result type: #{token.inspect}" unless token.is_a?(MessagePack::Token::ArrayT)
-    size = token.size
-    return "unexpected result array size #{size}" unless size == 4
+  private def read_msg_id(unpacker) : UInt32
+    size = unpacker.read_array_size
+    unpacker.finish_token!
 
-    token = unpacker.read_token
-    id = case token
-         when MessagePack::Token::IntT
-           token.value.to_i8
-         else
-           return "unexpected message header #{token.inspect}"
-         end
-    return "unexpected message response sign #{id}" unless id == 1_i8
+    unless size == 4
+      raise MessagePack::TypeCastError.new("Unexpected result array size, should 4, not #{size}")
+    end
 
-    token = unpacker.read_token
-    msgid = case token
-            when MessagePack::Token::IntT
-              token.value.to_u32
-            else
-              return "unexpected message msgid #{token.inspect}"
-            end
+    id = Int8.new(unpacker)
+    raise MessagePack::TypeCastError.new("Unexpected message result sign #{id}") unless id == 1_i8
 
-    token = unpacker.read_token
-    case token
-    when MessagePack::Token::NullT
-    when MessagePack::Token::StringT
-      msg = token.value
-      unpacker.read_token # skip nil result
+    msgid = UInt32.new(unpacker)
+
+    msg = Union(String | Nil).new(unpacker)
+    if msg
+      Nil.new(unpacker) # skip empty result
       raise SimpleRpc::RuntimeError.new(msg)
-    else
-      return "unexpected message error #{token.inspect}"
     end
 
     msgid
-  rescue ex : MessagePack::UnexpectedByteError
-    ex.message || "UnexpectedByteError"
   end
 
   private def catch_connection_errors
