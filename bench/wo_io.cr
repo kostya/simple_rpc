@@ -21,7 +21,7 @@ class Bench
   end
 end
 
-N = (ARGV[0]? || 1000).to_i
+N    = (ARGV[0]? || 1000).to_i
 MODE = (ARGV[1]? == "1") ? SimpleRpc::Client::Mode::ConnectPerRequest : SimpleRpc::Client::Mode::Persistent
 p "running in mode #{MODE}, for #{N}"
 
@@ -52,4 +52,3 @@ end
 
 p s
 p Time.now - t
-

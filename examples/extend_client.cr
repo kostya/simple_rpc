@@ -1,6 +1,6 @@
 require "../src/simple_rpc"
 
-class MyRpc 
+class MyRpc
   include SimpleRpc::Proto
 
   def bla(x : Int32, y : String) : Float64
