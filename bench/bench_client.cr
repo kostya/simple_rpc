@@ -16,10 +16,10 @@ n = 0
 s = 0.0
 t = Time.now
 
-CONCURRENCY.times do |i|
+CONCURRENCY.times do
   spawn do
     client = Bench::Client.new("127.0.0.1", 9003, mode: mode)
-    (REQUESTS / CONCURRENCY).times do |j|
+    (REQUESTS / CONCURRENCY).times do
       n += 1
       res = client.request(Float64, :doit, 1 / n.to_f)
       if res.ok?

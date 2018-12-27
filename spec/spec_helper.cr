@@ -127,7 +127,7 @@ spawn do
 end
 
 def bad_server_handle(client)
-  t = Tuple(Int8, UInt32, String, Array(MessagePack::Type)).from_msgpack(client)
+  Tuple(Int8, UInt32, String, Array(MessagePack::Type)).from_msgpack(client)
   client.write_byte(193_u8) # write illegal msgpack value
   client.flush
 end
