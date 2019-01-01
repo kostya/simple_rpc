@@ -58,6 +58,8 @@ end
 ```crystal
 require "simple_rpc"
 
+record Result, a : Int32, b : String { include MessagePack::Serializable }
+
 class MyData
   include MessagePack::Serializable
 
@@ -72,7 +74,7 @@ end
 class MyRpc 
   include SimpleRpc::Proto
 
-  def complex(data : MyData) : Bool
+  def complex(data : MyData) : Result
     # ...
   end
 end
