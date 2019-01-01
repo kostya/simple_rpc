@@ -59,7 +59,12 @@ class SimpleRpc::Server
   def run
     @server = server = TCPServer.new @host, @port
     loop do
-      client = server.accept
+      client = begin
+        server.accept
+      rescue IO::Error
+        close
+        return
+      end
       spawn handle(client, client)
     end
   end
