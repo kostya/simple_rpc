@@ -25,6 +25,21 @@ class SimpleRpc::Client
                  @mode : Mode = Mode::Persistent)
   end
 
+  # Execute request, raise error if error
+  # First argument is a return type, then method and args
+  #
+  #   example:
+  #     res = SimpleRpc::Client.request!(type, method, *args) # => type
+  #     res = SimpleRpc::Client.request!(Float64, :bla, 1, "2.5") # => Float64
+  #
+  # raises only SimpleRpc::Errors
+  #   SimpleRpc::ProtocallError       - when problem in client-server interaction
+  #   SimpleRpc::TypeCastError        - when return type not casted to requested
+  #   SimpleRpc::RuntimeError         - when task crashed on server
+  #   SimpleRpc::CannotConnectError   - when client cant connect to server
+  #   SimpleRpc::CommandTimeoutError  - when client wait too long for answer from server
+  #   SimpleRpc::ConnectionLostError  - when client lost connection to server
+
   def request!(klass : T.class, name, *args) forall T
     raw_request(name, Tuple.new(*args)) do |unpacker|
       begin
@@ -35,6 +50,19 @@ class SimpleRpc::Client
     end
   end
 
+  # Execute request, not raising errors
+  # First argument is a return type, then method and args
+  #
+  #   example:
+  #     res = SimpleRpc::Client.request(type, method, *args) # => SimpleRpc::Result(Float64)
+  #     res = SimpleRpc::Client.request(Float64, :bla, 1, "2.5") # => SimpleRpc::Result(Float64)
+  #
+  #     if res.ok?
+  #       p res.value! # => Float64
+  #     else
+  #       p res.error! # => SimpleRpc::Errors
+  #     end
+  #
   def request(klass : T.class, name, *args) forall T
     res = request!(klass, name, *args)
     SimpleRpc::Result(T).new(nil, res)
@@ -42,14 +70,7 @@ class SimpleRpc::Client
     SimpleRpc::Result(T).new(ex)
   end
 
-  # raises
-  #   SimpleRpc::ProtocallError       - when problem in client-server interaction
-  #   SimpleRpc::TypeCastError        - when return type not casted to requested
-  #   SimpleRpc::RuntimeError         - when task crashed on server
-  #   SimpleRpc::CannotConnectError   - when client cant connect to server
-  #   SimpleRpc::CommandTimeoutError  - when client wait too long for answer from server
-  #   SimpleRpc::ConnectionLostError  - when client lost connection to server
-  private def raw_request(method, args, msgid = 0_u32) forall T
+  private def raw_request(method, args, msgid = 0_u32)
     # instantinate connection
     socket
     writer
@@ -118,9 +139,7 @@ class SimpleRpc::Client
     size = unpacker.read_array_size
     unpacker.finish_token!
 
-    unless size == 4
-      raise MessagePack::TypeCastError.new("Unexpected result array size, should 4, not #{size}")
-    end
+    raise MessagePack::TypeCastError.new("Unexpected result array size, should 4, not #{size}") unless size == 4
 
     id = Int8.new(unpacker)
     raise MessagePack::TypeCastError.new("Unexpected message result sign #{id}") unless id == 1_i8

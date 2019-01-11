@@ -45,7 +45,7 @@ end
 require "simple_rpc"
 
 client = SimpleRpc::Client.new("127.0.0.1", 9000)
-result = client.request(Float64, :bla, 3, "5.5")
+result = client.request(Float64, :bla, 3, "5.5") # no raises if error
 
 if result.ok?
   p result.value! # => 16.5
@@ -54,7 +54,16 @@ else
 end
 ```
 
-#### If you want to exchange complex data types, you can include MessagePack::Serializable
+#### When you dont want to check errors, and ok with raise on problem:
+```crystal
+require "simple_rpc"
+
+client = SimpleRpc::Client.new("127.0.0.1", 9000)
+result = client.request!(Float64, :bla, 3, "5.5") # here can raise SimpleRpc::Errors
+p result # => 16.5
+```
+
+#### If you want to exchange complex data types, you should include MessagePack::Serializable
 ```crystal
 require "simple_rpc"
 
