@@ -1,4 +1,5 @@
 require "socket"
+require "msgpack"
 
 class SimpleRpc::Server
   @server : TCPServer?
