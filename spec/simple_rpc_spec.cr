@@ -217,15 +217,25 @@ describe SimpleRpc do
     it "sequence of requests" do
       f = 0.0
 
-      # TODO: add check that all use the same socket
+      connects = [] of IO?
+
       100.times do |i|
         res = {{prefix.id}}CLIENT.bla("#{i}.1", 2.5)
         if res.ok?
           f += res.value.not_nil!
         end
+
+        connects << {{prefix.id}}CLIENT.@socket
       end
 
       f.should eq 12400.0
+
+      {% if prefix == "PER_" %}
+        connects.uniq.should eq [nil]
+      {% else %}
+        connects.uniq.size.should eq 1
+        connects.uniq.should_not eq [nil]
+      {% end %}
     end
 
     it "reconnecting after close" do
@@ -314,18 +324,53 @@ describe SimpleRpc do
       SpecProto.notify_count.should eq 0
 
       sock = TCPSocket.new("127.0.0.1", 8888)
-      {2_i8, "notify", [5]}.to_msgpack(sock)
+      {2_i8, "notif", [5]}.to_msgpack(sock)
       sock.flush
 
       sleep 0.001
       SpecProto.notify_count.should eq 5
 
       sock = TCPSocket.new("127.0.0.1", 8888)
-      {2_i8, "notify", [10]}.to_msgpack(sock)
+      {2_i8, "notif", [10]}.to_msgpack(sock)
       sock.flush
 
       sleep 0.001
       SpecProto.notify_count.should eq 15
+    end
+
+    it "Notify with client" do
+      SpecProto.notify_count = 0
+      SpecProto.notify_count.should eq 0
+
+      {{prefix.id}}CLIENT.notify!("notif", 5)
+
+      sleep 0.001
+      SpecProto.notify_count.should eq 5
+
+      {{prefix.id}}CLIENT.notify!("notif", 15)
+
+      sleep 0.001
+      SpecProto.notify_count.should eq 20
+    end
+
+    it "sequence of requests with notify" do
+      SpecProto.notify_count = 0
+      SpecProto.notify_count.should eq 0
+
+      f = 0.0
+
+      100.times do |i|
+        res = {{prefix.id}}CLIENT.bla("#{i}.1", 2.5)
+        if res.ok?
+          f += res.value.not_nil!
+        end
+
+        {{prefix.id}}CLIENT.notify!("notif", i)
+      end
+
+      f.should eq 12400.0
+      sleep 0.001
+      SpecProto.notify_count.should eq 4950
     end
   end
   {% end %}

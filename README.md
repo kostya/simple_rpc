@@ -1,6 +1,6 @@
 # simple_rpc
 
-Remote Procedure Call Server and Client for Crystal. Designed to be reliable and stable (catch every possible protocall errors). Compatible with msgpack-rpc protocall.
+Remote Procedure Call Server and Client for Crystal. Implements msgpack-rpc protocall. Designed to be reliable and stable (catch every possible protocall/socket errors).
 
 ## Installation
 
@@ -73,11 +73,10 @@ class MyData
   include MessagePack::Serializable
 
   property a : Int32
-  property b : String
-  property c : Hash(String, String)?
+  property b : Hash(String, String)?
 
   @[MessagePack::Field(ignore: true)]
-  property d : Int32?
+  property c : Int32?
 end
 
 class MyRpc 

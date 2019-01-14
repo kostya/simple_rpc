@@ -71,6 +71,10 @@ class SimpleRpc::Client
     SimpleRpc::Result(T).new(ex)
   end
 
+  def notify!(name, *args)
+    raw_notify(name, args)
+  end
+
   private def raw_request(method, args, msgid = 0_u32)
     # instantinate connection
     socket
@@ -111,9 +115,30 @@ class SimpleRpc::Client
     close if @mode.connect_per_request?
   end
 
-  private def write_request(method, args, msgid)
+  private def raw_notify(method, args)
+    # instantinate connection
+    socket
+    writer
+
+    # write request to server
+    if @mode.persistent?
+      begin
+        write_request(method, args, 0_u32, true)
+      rescue SimpleRpc::ConnectionError
+        # connection already closed here, in catch_connection_errors
+        # retry it again with new connection
+        write_request(method, args, 0_u32, true)
+      end
+    else
+      write_request(method, args, 0_u32, true)
+    end
+  ensure
+    close if @mode.connect_per_request?
+  end
+
+  private def write_request(method, args, msgid, notify = false)
     catch_connection_errors do
-      write_header(writer, method, msgid, notify: false) do |packer|
+      write_header(writer, method, msgid, notify) do |packer|
         args.to_msgpack(packer)
       end
     end
