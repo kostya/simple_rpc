@@ -109,6 +109,10 @@ class SpecProto
     @@notify_count += x
     nil
   end
+
+  def named_args(a : Int32, b : String? = nil, c : Float64? = nil, d : Int32? = nil) : String
+    "#{a.inspect} - #{b.inspect} - #{c.inspect} - #{d.inspect}"
+  end
 end
 
 class SpecProto2

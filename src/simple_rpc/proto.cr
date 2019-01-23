@@ -50,7 +50,7 @@ module SimpleRpc::Proto
       end
 
       class Server
-        def handle_request(ctx)
+        def handle_request(ctx : SimpleRpc::Context)
           \{{@type}}.handle_request(ctx)
         end
       end

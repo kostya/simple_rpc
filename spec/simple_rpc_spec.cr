@@ -44,6 +44,16 @@ describe SimpleRpc do
       res.value!.should eq 2
     end
 
+    it "ok with named_args" do
+      res = {{prefix.id}}CLIENT.named_args(a: 1, b: "10")
+      res.ok?.should eq true
+      res.value!.should eq "1 - \"10\" - nil - nil"
+
+      res = {{prefix.id}}CLIENT.named_args(a: 1, c: 2.5)
+      res.ok?.should eq true
+      res.value!.should eq "1 - nil - 2.5 - nil"
+    end
+
     it "ok with big input args" do
       strings = (0..5).map { |i| (0..60000 + i).map(&.chr).join }
       res = {{prefix.id}}CLIENT.bin_input_args(strings, 2.5)
