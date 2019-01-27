@@ -147,13 +147,13 @@ class SimpleRpc::Client
   private def write_header(io, method, msgid = 0_u32, notify = false)
     packer = MessagePack::Packer.new(io)
     if notify
-      packer.write_array_start(3_u8)
-      packer.write(2_i8)
+      packer.write_array_start(3)
+      packer.write(SimpleRpc::NOTIFY)
       packer.write(method)
       yield packer
     else
-      packer.write_array_start(4_u8)
-      packer.write(0_i8)
+      packer.write_array_start(4)
+      packer.write(SimpleRpc::REQUEST)
       packer.write(msgid)
       packer.write(method)
       yield packer
@@ -168,7 +168,7 @@ class SimpleRpc::Client
     raise MessagePack::TypeCastError.new("Unexpected result array size, should 4, not #{size}") unless size == 4
 
     id = Int8.new(unpacker)
-    raise MessagePack::TypeCastError.new("Unexpected message result sign #{id}") unless id == 1_i8
+    raise MessagePack::TypeCastError.new("Unexpected message result sign #{id}") unless id == SimpleRpc::RESPONSE
 
     msgid = UInt32.new(unpacker)
 

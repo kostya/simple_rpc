@@ -13,20 +13,20 @@ record SimpleRpc::Context, msgid : UInt32, method : String, args_count : UInt32,
     case res
     when RawMsgpack
       packer = MessagePack::Packer.new(io)
-      packer.write_array_start(4_u8)
-      packer.write(1_u8)
+      packer.write_array_start(4)
+      packer.write(SimpleRpc::RESPONSE)
       packer.write(msgid)
       packer.write(nil)
       io.write(res.data)
     when IOMsgpack
       packer = MessagePack::Packer.new(io)
-      packer.write_array_start(4_u8)
-      packer.write(1_u8)
+      packer.write_array_start(4)
+      packer.write(SimpleRpc::RESPONSE)
       packer.write(msgid)
       packer.write(nil)
       IO.copy(res.io, io)
     else
-      {1_u8, msgid, nil, res}.to_msgpack(io)
+      {SimpleRpc::RESPONSE, msgid, nil, res}.to_msgpack(io)
     end
 
     io.flush
@@ -36,7 +36,7 @@ record SimpleRpc::Context, msgid : UInt32, method : String, args_count : UInt32,
   def write_error(msg)
     return true if notify
 
-    {1_u8, msgid, msg, nil}.to_msgpack(io)
+    {SimpleRpc::RESPONSE, msgid, msg, nil}.to_msgpack(io)
     io.flush
     true
   end

@@ -20,9 +20,9 @@ class SimpleRpc::Server
     id = Int8.new(unpacker)
 
     if request
-      raise MessagePack::TypeCastError.new("Unexpected message request sign #{id}") unless id == 0_i8
+      raise MessagePack::TypeCastError.new("Unexpected message request sign #{id}") unless id == SimpleRpc::REQUEST
     else
-      raise MessagePack::TypeCastError.new("Unexpected message notify sign #{id}") unless id == 2_i8
+      raise MessagePack::TypeCastError.new("Unexpected message notify sign #{id}") unless id == SimpleRpc::NOTIFY
     end
 
     msgid = request ? UInt32.new(unpacker) : 0_u32
