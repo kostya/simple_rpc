@@ -13,8 +13,4 @@ dependencies:
   pool:
     github: ysbaddaden/pool
 
-development_dependencies:
-  kemal:
-    github: kemalcr/kemal
-
 license: MIT
