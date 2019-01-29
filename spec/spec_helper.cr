@@ -1,20 +1,11 @@
 require "spec"
 require "../src/simple_rpc"
 
+HOST    = "127.0.0.1"
+PORT    = 8888
+TCPPORT = 8889
+
 record Bla, x : String, y : Hash(String, Int32) { include MessagePack::Serializable }
-
-class SimpleRpc::Client
-  property fake_io_r : IO?
-  property fake_io_w : IO?
-
-  def socket
-    @fake_io_r || previous_def
-  end
-
-  def writer
-    @fake_io_w || previous_def
-  end
-end
 
 class SpecProto
   include SimpleRpc::Proto
@@ -32,9 +23,9 @@ class SpecProto
     Bla.new(a.to_s, h)
   end
 
-  def sleepi(v : Float64) : Int32
+  def sleepi(v : Float64, x : Int32) : Int32
     sleep(v)
-    1
+    x
   end
 
   def no_args : Int32
@@ -127,7 +118,7 @@ class SpecProto2
 end
 
 spawn do
-  SpecProto::Server.new("127.0.0.1", 8888, false).run
+  SpecProto::Server.new(HOST, PORT, false).run
 end
 
 def bad_server_handle(client)
@@ -137,7 +128,7 @@ def bad_server_handle(client)
 end
 
 spawn do
-  bad_server = TCPServer.new("127.0.0.1", 8889)
+  bad_server = TCPServer.new(HOST, TCPPORT)
   loop do
     cli = bad_server.accept
     spawn bad_server_handle(cli)
@@ -146,26 +137,16 @@ end
 
 sleep 0.1
 
-CLIENT         = SpecProto::Client.new("127.0.0.1", 8888)
-CLIENT_TIMEOUT = SpecProto::Client.new("127.0.0.1", 8888, command_timeout: 0.2)
-CLIENT_BAD     = SpecProto::Client.new("127.0.0.1", 9999)
-CLIENT2        = SpecProto2::Client.new("127.0.0.1", 8888)
-CLIENT3        = SpecProto2::Client.new("127.0.0.1", 8889)
+CLIENT     = SpecProto::Client.new(HOST, PORT, mode: SimpleRpc::Client::Mode::Persistent)
+PER_CLIENT = SpecProto::Client.new(HOST, PORT, mode: SimpleRpc::Client::Mode::ConnectPerRequest)
 
-PER_CLIENT         = SpecProto::Client.new("127.0.0.1", 8888, mode: SimpleRpc::Client::Mode::ConnectPerRequest)
-PER_CLIENT_TIMEOUT = SpecProto::Client.new("127.0.0.1", 8888, command_timeout: 0.2, mode: SimpleRpc::Client::Mode::ConnectPerRequest)
-PER_CLIENT_BAD     = SpecProto::Client.new("127.0.0.1", 9999, mode: SimpleRpc::Client::Mode::ConnectPerRequest)
-PER_CLIENT2        = SpecProto2::Client.new("127.0.0.1", 8888, mode: SimpleRpc::Client::Mode::ConnectPerRequest)
-PER_CLIENT3        = SpecProto2::Client.new("127.0.0.1", 8889, mode: SimpleRpc::Client::Mode::ConnectPerRequest)
-
-PIP1 = IO::Stapled.new(*IO.pipe)
-PIP2 = IO::Stapled.new(*IO.pipe)
-
-# FAKE server
-fake_server = SpecProto::Server.new("127.0.0.1", 8888, false)
-spawn do
-  fake_server.handle(PIP1, PIP2)
-end
-IOCLIENT = SpecProto::Client.new("127.0.0.1", 8888)
-IOCLIENT.fake_io_r = PIP2
-IOCLIENT.fake_io_w = PIP1
+# # FAKE server
+# PIP1 = IO::Stapled.new(*IO.pipe)
+# PIP2 = IO::Stapled.new(*IO.pipe)
+# fake_server = SpecProto::Server.new(HOST, PORT, false)
+# spawn do
+#   fake_server.handle(PIP1, PIP2)
+# end
+# IOCLIENT = SpecProto::Client.new(HOST, PORT)
+# IOCLIENT.fake_io_r = PIP2
+# IOCLIENT.fake_io_w = PIP1

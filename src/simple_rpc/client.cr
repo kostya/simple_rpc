@@ -2,8 +2,6 @@ require "socket"
 require "msgpack"
 
 class SimpleRpc::Client
-  getter socket : TCPSocket?
-
   enum Mode
     # Connect on every request, after request done close connection.
     # Number of concurrent requests limited by system (number of allowed connections).
@@ -18,6 +16,8 @@ class SimpleRpc::Client
     # for every fiber
     Persistent
   end
+
+  @connection : Connection?
 
   def initialize(@host : String,
                  @port : Int32,
@@ -76,76 +76,103 @@ class SimpleRpc::Client
   end
 
   private def raw_request(method, args, msgid = 0_u32)
-    # instantinate connection
-    socket
-    writer
+    connection = get_connection
+
+    # init connection by instantinate socket
+    # if it crash, when cannot connect, is ok
+    # in persistent it possible already established
+    connection.socket
 
     # write request to server
     if @mode.persistent?
       begin
-        write_request(method, args, msgid)
+        write_request(connection, method, args, msgid)
       rescue SimpleRpc::ConnectionError
         # connection already closed here, in catch_connection_errors
         # retry it again with new connection
-        write_request(method, args, msgid)
+        write_request(connection, method, args, msgid)
       end
     else
-      write_request(method, args, msgid)
+      write_request(connection, method, args, msgid)
     end
 
     # read request from server
-    res = catch_connection_errors do
+    res = connection.catch_connection_errors do
       begin
-        unpacker = MessagePack::IOUnpacker.new(socket)
+        unpacker = MessagePack::IOUnpacker.new(connection.socket)
         msg = read_msg_id(unpacker)
         unless msgid == msg
-          close
+          connection.close
           raise SimpleRpc::ProtocallError.new("unexpected msgid: expected #{msgid}, but got #{msg}")
         end
 
         yield(MessagePack::NodeUnpacker.new(unpacker.read_node))
       rescue ex : MessagePack::TypeCastError | MessagePack::UnexpectedByteError
-        close
+        connection.close
         raise SimpleRpc::ProtocallError.new(ex.message)
       end
     end
 
     res
   ensure
-    close if @mode.connect_per_request?
+    if conn = connection
+      release_connection(conn)
+    end
+  end
+
+  private def get_connection
+    if @mode.connect_per_request?
+      Connection.new(@host, @port, @command_timeout, @connect_timeout)
+    else
+      @connection ||= Connection.new(@host, @port, @command_timeout, @connect_timeout)
+    end
+  end
+
+  private def release_connection(conn)
+    if @mode.connect_per_request?
+      conn.close
+    end
   end
 
   private def raw_notify(method, args)
-    # instantinate connection
-    socket
-    writer
+    connection = get_connection
+
+    # init connection by instantinate socket
+    # if it crash, when cannot connect, is ok
+    # in persistent it possible already established
+    connection.socket
 
     # write request to server
     if @mode.persistent?
       begin
-        write_request(method, args, 0_u32, true)
+        write_request(connection, method, args, 0_u32, true)
       rescue SimpleRpc::ConnectionError
         # connection already closed here, in catch_connection_errors
         # retry it again with new connection
-        write_request(method, args, 0_u32, true)
+        write_request(connection, method, args, 0_u32, true)
       end
     else
-      write_request(method, args, 0_u32, true)
+      write_request(connection, method, args, 0_u32, true)
     end
+
+    nil
   ensure
-    close if @mode.connect_per_request?
+    if conn = connection
+      release_connection(conn)
+    end
   end
 
-  private def write_request(method, args, msgid, notify = false)
-    catch_connection_errors do
-      write_header(writer, method, msgid, notify) do |packer|
+  private def write_request(conn, method, args, msgid, notify = false)
+    conn.catch_connection_errors do
+      write_header(conn, method, msgid, notify) do |packer|
         args.to_msgpack(packer)
       end
     end
   end
 
-  private def write_header(io, method, msgid = 0_u32, notify = false)
-    packer = MessagePack::Packer.new(io)
+  private def write_header(conn, method, msgid = 0_u32, notify = false)
+    sock = conn.socket
+    packer = MessagePack::Packer.new(sock)
     if notify
       packer.write_array_start(3)
       packer.write(SimpleRpc::NOTIFY)
@@ -158,7 +185,8 @@ class SimpleRpc::Client
       packer.write(method)
       yield packer
     end
-    io.flush
+    sock.flush
+    true
   end
 
   private def read_msg_id(unpacker) : UInt32
@@ -181,39 +209,54 @@ class SimpleRpc::Client
     msgid
   end
 
-  private def catch_connection_errors
-    yield
-  rescue ex : Errno | IO::Error | MessagePack::EofError
-    close
-    raise SimpleRpc::ConnectionLostError.new("#{ex.class}: #{ex.message}")
-  rescue ex : IO::Timeout
-    close
-    raise SimpleRpc::CommandTimeoutError.new("Command timed out")
-  end
-
-  def socket
-    @socket ||= connect
-  end
-
-  def writer
-    socket
-  end
-
-  private def connect
-    _socket = TCPSocket.new @host, @port, connect_timeout: @connect_timeout
-    if t = @command_timeout
-      _socket.read_timeout = t
-      _socket.write_timeout = t
-    end
-    _socket.read_buffering = true
-    _socket.sync = false
-    _socket
-  rescue ex : IO::Timeout | Errno | Socket::Error
-    raise SimpleRpc::CannotConnectError.new("#{ex.class}: #{ex.message}")
-  end
-
   def close
-    @socket.try(&.close) rescue nil
-    @socket = nil
+    @connection.try(&.close)
+    @connection = nil
+  end
+
+  class Connection
+    getter socket : TCPSocket?
+
+    def initialize(@host : String,
+                   @port : Int32,
+                   @command_timeout : Float64? = nil,
+                   @connect_timeout : Float64? = nil)
+    end
+
+    def socket
+      @socket ||= connect
+    end
+
+    private def connect
+      _socket = TCPSocket.new @host, @port, connect_timeout: @connect_timeout
+      if t = @command_timeout
+        _socket.read_timeout = t
+        _socket.write_timeout = t
+      end
+      _socket.read_buffering = true
+      _socket.sync = false
+      _socket
+    rescue ex : IO::Timeout | Errno | Socket::Error
+      raise SimpleRpc::CannotConnectError.new("#{ex.class}: #{ex.message}")
+    end
+
+    def catch_connection_errors
+      yield
+    rescue ex : Errno | IO::Error | MessagePack::EofError
+      close
+      raise SimpleRpc::ConnectionLostError.new("#{ex.class}: #{ex.message}")
+    rescue ex : IO::Timeout
+      close
+      raise SimpleRpc::CommandTimeoutError.new("Command timed out")
+    end
+
+    def connected?
+      @socket != nil
+    end
+
+    def close
+      @socket.try(&.close) rescue nil
+      @socket = nil
+    end
   end
 end
