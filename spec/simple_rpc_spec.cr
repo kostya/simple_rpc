@@ -2,8 +2,11 @@ require "./spec_helper"
 require "http/client"
 
 describe SimpleRpc do
-  [{CLIENT, "permanent", SimpleRpc::Client::Mode::Persistent},
-   {PER_CLIENT, "cpr", SimpleRpc::Client::Mode::ConnectPerRequest}].each do |(client, clname, clmode)|
+  [
+    {PER_CLIENT, "connect_per_request", SimpleRpc::Client::Mode::ConnectPerRequest},
+    {POOL_CLIENT, "pool", SimpleRpc::Client::Mode::Pool},
+    {S_CLIENT, "single", SimpleRpc::Client::Mode::Single},
+  ].each do |(client, clname, clmode)|
     context "CLIENT #{clname}" do
       it "ok" do
         res = client.bla("3.5", 9.6)
@@ -241,12 +244,12 @@ describe SimpleRpc do
             f += res.value.not_nil!
           end
 
-          connects << client.@connection.try(&.socket)
+          connects << client.@single.try(&.socket)
         end
 
         f.should eq 12400.0
 
-        unless clname == "permanent"
+        unless clname == "single"
           connects.uniq.should eq [nil]
         else
           connects.uniq.size.should eq 1
@@ -398,9 +401,15 @@ describe SimpleRpc do
 
           n.times do |i|
             spawn do
+              cl = if clname == "single"
+                     SpecProto::Client.new(HOST, PORT, mode: SimpleRpc::Client::Mode::Single)
+                   else
+                     client
+                   end
+
               m.times do |j|
                 v1 = i * 10000 + j
-                v = client.request!(Int32, :sleepi, 0.1 + rand(0.1), v1)
+                v = cl.request!(Int32, :sleepi, 0.1 + rand(0.1), v1)
                 if v == v1
                   ch.send(v)
                 else
@@ -420,14 +429,4 @@ describe SimpleRpc do
       end
     end
   end
-
-  # it "ok work with FAKE CLIENT and FAKE SERVER" do
-  #   res = IOCLIENT.bla("3.5", 9.6)
-  #   res.ok?.should eq true
-  #   res.value!.should eq 33.6
-
-  #   res = IOCLIENT.request(Float64, :bla, "3.5", 9.6)
-  #   res.ok?.should eq true
-  #   res.value!.should eq 33.6
-  # end
 end

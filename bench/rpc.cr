@@ -14,7 +14,14 @@ end
 
 sleep 0.5
 N = (ARGV[0]? || 1000).to_i
-mode = (ARGV[1]? == "1") ? SimpleRpc::Client::Mode::ConnectPerRequest : SimpleRpc::Client::Mode::Persistent
+mode = case (ARGV[2]? || "0")
+       when "0"
+         SimpleRpc::Client::Mode::Single
+       when "1"
+         SimpleRpc::Client::Mode::ConnectPerRequest
+       else
+         SimpleRpc::Client::Mode::Pool
+       end
 p "running in mode #{mode}, for #{N}"
 
 client = Bench::Client.new("127.0.0.1", 9002, mode: mode)

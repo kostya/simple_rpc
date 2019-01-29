@@ -1,29 +1,41 @@
 require "socket"
 require "msgpack"
+require "pool/connection"
 
 class SimpleRpc::Client
   enum Mode
-    # Connect on every request, after request done close connection.
-    # Number of concurrent requests limited by system (number of allowed connections).
-    # Expected to be slow, because spend extra time on create connection to server,
-    # but if you have not thousand requests per second, this is perfect
+    # Create new connection for every request, after request done close connection.
+    # Quite slow (because spend time to create connection), but concurrency unlimited (only by OS).
+    # Good for slow requests.
+    # [default]
     ConnectPerRequest
 
-    # Create persistent connection to server within a fiber.
-    # Much faster than ConnectPerRequest, when you need to run millions
-    # sequential requests within a fiber.
-    # But if you need concurrent clients, you should create new client
-    # for every fiber
-    Persistent
+    # Create persistent pool of connections.
+    # Much faster, but concurrency limited by @pool_size (default = 5).
+    # Good for millions of very fast requests.
+    # Every request have one autoreconnection attempt (to fix possible connection error, outdated, server crash).
+    Pool
+
+    # Single persistent connection.
+    # Same as pool of size 1, when you want to manage concurrency by yourself.
+    # Every request have one autoreconnection attempt (to fix possible connection error, outdated, server crash).
+    Single
   end
 
-  getter connection : Connection?
+  getter pool : ConnectionPool(Connection)?
+  getter single : Connection?
+  getter mode
 
   def initialize(@host : String,
                  @port : Int32,
                  @command_timeout : Float64? = nil,
                  @connect_timeout : Float64? = nil,
-                 @mode : Mode = Mode::Persistent)
+                 @mode : Mode = Mode::ConnectPerRequest,
+                 @pool_size = 5)
+    case @mode
+    when Mode::Pool
+      @pool = ConnectionPool(Connection).new(capacity: @pool_size) { create_connection }
+    end
   end
 
   # Execute request, raise error if error
@@ -84,12 +96,11 @@ class SimpleRpc::Client
     connection.socket
 
     # write request to server
-    if @mode.persistent?
+    unless @mode.connect_per_request?
       begin
         write_request(connection, method, args, msgid)
       rescue SimpleRpc::ConnectionError
-        # connection already closed here, in catch_connection_errors
-        # retry it again with new connection
+        # reconnecting here
         write_request(connection, method, args, msgid)
       end
     else
@@ -120,17 +131,37 @@ class SimpleRpc::Client
     end
   end
 
+  private def create_connection
+    Connection.new(@host, @port, @command_timeout, @connect_timeout)
+  end
+
+  private def pool!
+    @pool.not_nil!
+  end
+
   private def get_connection
-    if @mode.connect_per_request?
-      Connection.new(@host, @port, @command_timeout, @connect_timeout)
+    case @mode
+    when Mode::Pool
+      _pool = pool!
+      begin
+        _pool.checkout
+      rescue IO::Timeout
+        # not free connection in the pool
+        raise PoolTimeoutError.new("No free connection (used #{_pool.size} of #{_pool.capacity}) after timeout of #{_pool.timeout}s")
+      end
+    when Mode::Single
+      @single ||= create_connection
     else
-      @connection ||= Connection.new(@host, @port, @command_timeout, @connect_timeout)
+      create_connection
     end
   end
 
   private def release_connection(conn)
-    if @mode.connect_per_request?
+    case @mode
+    when Mode::ConnectPerRequest
       conn.close
+    when Mode::Pool
+      pool!.checkin(conn)
     end
   end
 
@@ -143,12 +174,11 @@ class SimpleRpc::Client
     connection.socket
 
     # write request to server
-    if @mode.persistent?
+    unless @mode.connect_per_request?
       begin
         write_request(connection, method, args, 0_u32, true)
       rescue SimpleRpc::ConnectionError
-        # connection already closed here, in catch_connection_errors
-        # retry it again with new connection
+        # reconnecting here
         write_request(connection, method, args, 0_u32, true)
       end
     else
@@ -210,8 +240,13 @@ class SimpleRpc::Client
   end
 
   def close
-    @connection.try(&.close)
-    @connection = nil
+    case @mode
+    when Mode::Pool
+      pool!.@pool.each(&.close)
+    when Mode::Single
+      @single.try(&.close)
+      @single = nil
+    end
   end
 
   class Connection

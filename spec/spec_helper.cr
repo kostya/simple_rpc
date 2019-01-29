@@ -137,16 +137,6 @@ end
 
 sleep 0.1
 
-CLIENT     = SpecProto::Client.new(HOST, PORT, mode: SimpleRpc::Client::Mode::Persistent)
-PER_CLIENT = SpecProto::Client.new(HOST, PORT, mode: SimpleRpc::Client::Mode::ConnectPerRequest)
-
-# # FAKE server
-# PIP1 = IO::Stapled.new(*IO.pipe)
-# PIP2 = IO::Stapled.new(*IO.pipe)
-# fake_server = SpecProto::Server.new(HOST, PORT, false)
-# spawn do
-#   fake_server.handle(PIP1, PIP2)
-# end
-# IOCLIENT = SpecProto::Client.new(HOST, PORT)
-# IOCLIENT.fake_io_r = PIP2
-# IOCLIENT.fake_io_w = PIP1
+POOL_CLIENT = SpecProto::Client.new(HOST, PORT, mode: SimpleRpc::Client::Mode::Pool, pool_size: 20)
+PER_CLIENT  = SpecProto::Client.new(HOST, PORT, mode: SimpleRpc::Client::Mode::ConnectPerRequest)
+S_CLIENT    = SpecProto::Client.new(HOST, PORT, mode: SimpleRpc::Client::Mode::Single)

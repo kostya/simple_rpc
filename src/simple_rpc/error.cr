@@ -9,6 +9,8 @@ module SimpleRpc
 
   class CannotConnectError < ConnectionError; end
 
+  class PoolTimeoutError < ConnectionError; end
+
   class RuntimeError < Errors; end
 
   class ProtocallError < Errors; end

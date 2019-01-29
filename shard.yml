@@ -1,5 +1,5 @@
 name: simple_rpc
-version: 0.10.0
+version: 0.11.0
 
 authors:
   - Konstantin Makarchev <kostya27@gmail.com>
@@ -10,6 +10,8 @@ dependencies:
   msgpack:
     github: crystal-community/msgpack-crystal
     version: ">=0.13.1"
+  pool:
+    github: ysbaddaden/pool
 
 development_dependencies:
   kemal:
