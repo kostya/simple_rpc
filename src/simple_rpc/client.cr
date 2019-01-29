@@ -17,7 +17,7 @@ class SimpleRpc::Client
     Persistent
   end
 
-  @connection : Connection?
+  getter connection : Connection?
 
   def initialize(@host : String,
                  @port : Int32,
