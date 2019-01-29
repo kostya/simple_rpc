@@ -344,14 +344,14 @@ describe SimpleRpc do
         {2_i8, "notif", [5]}.to_msgpack(sock)
         sock.flush
 
-        sleep 0.001
+        sleep 0.05
         SpecProto.notify_count.should eq 5
 
         sock = TCPSocket.new(HOST, PORT)
         {2_i8, "notif", [10]}.to_msgpack(sock)
         sock.flush
 
-        sleep 0.001
+        sleep 0.05
         SpecProto.notify_count.should eq 15
       end
 
@@ -361,12 +361,12 @@ describe SimpleRpc do
 
         client.notify!("notif", 5)
 
-        sleep 0.001
+        sleep 0.05
         SpecProto.notify_count.should eq 5
 
         client.notify!("notif", 15)
 
-        sleep 0.001
+        sleep 0.05
         SpecProto.notify_count.should eq 20
       end
 
@@ -386,7 +386,7 @@ describe SimpleRpc do
         end
 
         f.should eq 12400.0
-        sleep 0.001
+        sleep 0.05
         SpecProto.notify_count.should eq 4950
       end
 
