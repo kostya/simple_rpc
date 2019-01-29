@@ -14,7 +14,7 @@ end
 
 sleep 0.5
 N = (ARGV[0]? || 1000).to_i
-mode = case (ARGV[2]? || "0")
+mode = case (ARGV[1]? || "0")
        when "0"
          SimpleRpc::Client::Mode::Single
        when "1"
