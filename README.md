@@ -1,5 +1,7 @@
 # simple_rpc
 
+[![Build Status](https://travis-ci.org/kostya/simple_rpc.svg?branch=master)](http://travis-ci.org/kostya/simple_rpc)
+
 Remote Procedure Call Server and Client for Crystal. Implements msgpack-rpc protocall. Designed to be reliable and stable (catch every possible protocall/socket errors).
 
 ## Installation
