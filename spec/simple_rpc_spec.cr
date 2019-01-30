@@ -3,10 +3,12 @@ require "http/client"
 
 describe SimpleRpc do
   [
-    {PER_CLIENT, "connect_per_request", SimpleRpc::Client::Mode::ConnectPerRequest},
-    {POOL_CLIENT, "pool", SimpleRpc::Client::Mode::Pool},
-    {S_CLIENT, "single", SimpleRpc::Client::Mode::Single},
-  ].each do |(client, clname, clmode)|
+    {"connect_per_request", SimpleRpc::Client::Mode::ConnectPerRequest},
+    {"pool", SimpleRpc::Client::Mode::Pool},
+    {"single", SimpleRpc::Client::Mode::Single},
+  ].each do |(clname, clmode)|
+    client = SpecProto::Client.new(HOST, PORT, mode: clmode)
+
     context "CLIENT #{clname}" do
       it "ok" do
         res = client.bla("3.5", 9.6)

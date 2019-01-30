@@ -11,14 +11,14 @@ class SimpleRpc::Client
     ConnectPerRequest
 
     # Create persistent pool of connections.
-    # Much faster, but concurrency limited by @pool_size (default = 5).
+    # Much faster, but concurrency limited by pool_size (default = 20).
     # Good for millions of very fast requests.
-    # Every request have one autoreconnection attempt (to fix possible connection error, outdated, server crash).
+    # Every request have one autoreconnection attempt (because connection in pool can be outdated).
     Pool
 
     # Single persistent connection.
     # Same as pool of size 1, when you want to manage concurrency by yourself.
-    # Every request have one autoreconnection attempt (to fix possible connection error, outdated, server crash).
+    # Every request have one autoreconnection attempt (because persistent connection can be outdated).
     Single
   end
 
@@ -31,10 +31,11 @@ class SimpleRpc::Client
                  @command_timeout : Float64? = nil,
                  @connect_timeout : Float64? = nil,
                  @mode : Mode = Mode::ConnectPerRequest,
-                 @pool_size = 5)
+                 pool_size = 20,
+                 pool_timeout = 5.0)
     case @mode
     when Mode::Pool
-      @pool = ConnectionPool(Connection).new(capacity: @pool_size) { create_connection }
+      @pool = ConnectionPool(Connection).new(capacity: pool_size, timeout: pool_timeout) { create_connection }
     end
   end
 
@@ -232,7 +233,7 @@ class SimpleRpc::Client
 
     msg = Union(String | Nil).new(unpacker)
     if msg
-      Nil.new(unpacker) # skip empty result
+      unpacker.read_nil # skip empty result
       raise SimpleRpc::RuntimeError.new(msg)
     end
 
@@ -249,7 +250,7 @@ class SimpleRpc::Client
     end
   end
 
-  class Connection
+  private class Connection
     getter socket : TCPSocket?
 
     def initialize(@host : String,

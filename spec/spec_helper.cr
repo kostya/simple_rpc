@@ -136,7 +136,3 @@ spawn do
 end
 
 sleep 0.1
-
-POOL_CLIENT = SpecProto::Client.new(HOST, PORT, mode: SimpleRpc::Client::Mode::Pool, pool_size: 20)
-PER_CLIENT  = SpecProto::Client.new(HOST, PORT, mode: SimpleRpc::Client::Mode::ConnectPerRequest)
-S_CLIENT    = SpecProto::Client.new(HOST, PORT, mode: SimpleRpc::Client::Mode::Single)
