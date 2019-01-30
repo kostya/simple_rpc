@@ -2,14 +2,10 @@ require "./spec_helper"
 require "http/client"
 
 describe SimpleRpc do
-  [
-    {"connect_per_request", SimpleRpc::Client::Mode::ConnectPerRequest},
-    {"pool", SimpleRpc::Client::Mode::Pool},
-    {"single", SimpleRpc::Client::Mode::Single},
-  ].each do |(clname, clmode)|
+  [SimpleRpc::Client::Mode::ConnectPerRequest, SimpleRpc::Client::Mode::Pool, SimpleRpc::Client::Mode::Single].each do |clmode|
     client = SpecProto::Client.new(HOST, PORT, mode: clmode)
 
-    context "CLIENT #{clname}" do
+    context "CLIENT(#{clmode})" do
       it "ok" do
         res = client.bla("3.5", 9.6)
         res.ok?.should eq true
@@ -251,11 +247,11 @@ describe SimpleRpc do
 
         f.should eq 12400.0
 
-        unless clname == "single"
-          connects.uniq.should eq [nil]
-        else
+        if clmode == SimpleRpc::Client::Mode::Single
           connects.uniq.size.should eq 1
           connects.uniq.should_not eq [nil]
+        else
+          connects.uniq.should eq [nil]
         end
       end
 
@@ -403,7 +399,7 @@ describe SimpleRpc do
 
           n.times do |i|
             spawn do
-              cl = if clname == "single"
+              cl = if clmode == SimpleRpc::Client::Mode::Single
                      SpecProto::Client.new(HOST, PORT, mode: SimpleRpc::Client::Mode::Single)
                    else
                      client

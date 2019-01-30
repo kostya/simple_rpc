@@ -17,7 +17,7 @@ class SimpleRpc::Client
     Pool
 
     # Single persistent connection.
-    # Same as pool of size 1, when you want to manage concurrency by yourself.
+    # Same as pool of size 1, you should manage concurrency by yourself.
     # Every request have one autoreconnection attempt (because persistent connection can be outdated).
     Single
   end
@@ -33,8 +33,7 @@ class SimpleRpc::Client
                  @mode : Mode = Mode::ConnectPerRequest,
                  pool_size = 20,
                  pool_timeout = 5.0)
-    case @mode
-    when Mode::Pool
+    if @mode == Mode::Pool
       @pool = ConnectionPool(Connection).new(capacity: pool_size, timeout: pool_timeout) { create_connection }
     end
   end
@@ -53,6 +52,7 @@ class SimpleRpc::Client
   #   SimpleRpc::CannotConnectError   - when client cant connect to server
   #   SimpleRpc::CommandTimeoutError  - when client wait too long for answer from server
   #   SimpleRpc::ConnectionLostError  - when client lost connection to server
+  #   SimpleRpc::PoolTimeoutError     - when no free connections in pool
 
   def request!(klass : T.class, name, *args) forall T
     raw_request(name, Tuple.new(*args)) do |unpacker|
@@ -88,24 +88,22 @@ class SimpleRpc::Client
     raw_notify(name, args)
   end
 
-  private def raw_request(method, args, msgid = 0_u32)
+  private def raw_request(method, args, msgid = SimpleRpc::DEFAULT_MSG_ID)
     connection = get_connection
 
-    # init connection by instantinate socket
-    # if it crash, when cannot connect, is ok
-    # in persistent it possible already established
+    # establish connection if needed
     connection.socket
 
     # write request to server
-    unless @mode.connect_per_request?
+    if @mode.connect_per_request?
+      write_request(connection, method, args, msgid)
+    else
       begin
         write_request(connection, method, args, msgid)
       rescue SimpleRpc::ConnectionError
-        # reconnecting here
+        # reconnecting here, if needed
         write_request(connection, method, args, msgid)
       end
-    else
-      write_request(connection, method, args, msgid)
     end
 
     # read request from server
@@ -169,21 +167,19 @@ class SimpleRpc::Client
   private def raw_notify(method, args)
     connection = get_connection
 
-    # init connection by instantinate socket
-    # if it crash, when cannot connect, is ok
-    # in persistent it possible already established
+    # establish connection if needed
     connection.socket
 
     # write request to server
-    unless @mode.connect_per_request?
-      begin
-        write_request(connection, method, args, 0_u32, true)
-      rescue SimpleRpc::ConnectionError
-        # reconnecting here
-        write_request(connection, method, args, 0_u32, true)
-      end
+    if @mode.connect_per_request?
+      write_request(connection, method, args, SimpleRpc::DEFAULT_MSG_ID, true)
     else
-      write_request(connection, method, args, 0_u32, true)
+      begin
+        write_request(connection, method, args, SimpleRpc::DEFAULT_MSG_ID, true)
+      rescue SimpleRpc::ConnectionError
+        # reconnecting here, if needed
+        write_request(connection, method, args, SimpleRpc::DEFAULT_MSG_ID, true)
+      end
     end
 
     nil
@@ -201,16 +197,16 @@ class SimpleRpc::Client
     end
   end
 
-  private def write_header(conn, method, msgid = 0_u32, notify = false)
+  private def write_header(conn, method, msgid = SimpleRpc::DEFAULT_MSG_ID, notify = false)
     sock = conn.socket
     packer = MessagePack::Packer.new(sock)
     if notify
-      packer.write_array_start(3)
+      packer.write_array_start(SimpleRpc::NOTIFY_SIZE)
       packer.write(SimpleRpc::NOTIFY)
       packer.write(method)
       yield packer
     else
-      packer.write_array_start(4)
+      packer.write_array_start(SimpleRpc::REQUEST_SIZE)
       packer.write(SimpleRpc::REQUEST)
       packer.write(msgid)
       packer.write(method)
@@ -224,16 +220,21 @@ class SimpleRpc::Client
     size = unpacker.read_array_size
     unpacker.finish_token!
 
-    raise MessagePack::TypeCastError.new("Unexpected result array size, should 4, not #{size}") unless size == 4
+    unless size == SimpleRpc::RESPONSE_SIZE
+      raise MessagePack::TypeCastError.new("Unexpected result array size, should #{SimpleRpc::RESPONSE_SIZE}, not #{size}")
+    end
 
     id = Int8.new(unpacker)
-    raise MessagePack::TypeCastError.new("Unexpected message result sign #{id}") unless id == SimpleRpc::RESPONSE
+
+    unless id == SimpleRpc::RESPONSE
+      raise MessagePack::TypeCastError.new("Unexpected message result sign #{id}")
+    end
 
     msgid = UInt32.new(unpacker)
 
     msg = Union(String | Nil).new(unpacker)
     if msg
-      unpacker.read_nil # skip empty result
+      unpacker.skip_value # skip empty result
       raise SimpleRpc::RuntimeError.new(msg)
     end
 

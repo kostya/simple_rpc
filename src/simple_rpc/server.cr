@@ -7,14 +7,14 @@ class SimpleRpc::Server
   def initialize(@host : String, @port : Int32, @debug = false, @close_connection_after_request = false)
   end
 
-  private def read_context(reader_io, writer_io) : Context
-    unpacker = MessagePack::IOUnpacker.new(reader_io)
+  private def read_context(io) : Context
+    unpacker = MessagePack::IOUnpacker.new(io)
     size = unpacker.read_array_size
     unpacker.finish_token!
 
-    request = (size == 4)
-    unless request || size == 3
-      raise MessagePack::TypeCastError.new("Unexpected request array size, should be 3 or 4, not #{size}")
+    request = (size == SimpleRpc::REQUEST_SIZE)
+    unless request || size == SimpleRpc::NOTIFY_SIZE
+      raise MessagePack::TypeCastError.new("Unexpected request array size, should be #{SimpleRpc::REQUEST_SIZE} or #{SimpleRpc::NOTIFY_SIZE}, not #{size}")
     end
 
     id = Int8.new(unpacker)
@@ -25,21 +25,21 @@ class SimpleRpc::Server
       raise MessagePack::TypeCastError.new("Unexpected message notify sign #{id}") unless id == SimpleRpc::NOTIFY
     end
 
-    msgid = request ? UInt32.new(unpacker) : 0_u32
+    msgid = request ? UInt32.new(unpacker) : SimpleRpc::DEFAULT_MSG_ID
     method = String.new(unpacker)
 
     args_count = unpacker.read_array_size
     unpacker.finish_token!
 
-    Context.new(msgid, method, args_count, unpacker, writer_io, !request)
+    Context.new(msgid, method, args_count, unpacker, io, !request)
   end
 
-  def handle(reader_io, writer_io)
-    reader_io.read_buffering = true if reader_io.responds_to?(:read_buffering)
-    writer_io.sync = false if writer_io.responds_to?(:sync=)
+  def handle(io)
+    io.read_buffering = true if io.responds_to?(:read_buffering)
+    io.sync = false if io.responds_to?(:sync=)
 
     loop do
-      ctx = read_context(reader_io, writer_io)
+      ctx = read_context(io)
       handle_request(ctx) || ctx.write_error("method '#{ctx.method}' not found")
       break if @close_connection_after_request
     end
@@ -47,10 +47,7 @@ class SimpleRpc::Server
     debug(ex.message)
   rescue ex : MessagePack::EofError
   ensure
-    reader_io.close rescue nil
-    if writer_io != reader_io
-      writer_io.close rescue nil
-    end
+    io.close rescue nil
   end
 
   private def debug(msg)
@@ -66,7 +63,7 @@ class SimpleRpc::Server
         close
         return
       end
-      spawn handle(client, client)
+      spawn handle(client)
     end
   end
 

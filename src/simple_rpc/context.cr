@@ -13,14 +13,14 @@ record SimpleRpc::Context, msgid : UInt32, method : String, args_count : UInt32,
     case res
     when RawMsgpack
       packer = MessagePack::Packer.new(io)
-      packer.write_array_start(4)
+      packer.write_array_start(SimpleRpc::RESPONSE_SIZE)
       packer.write(SimpleRpc::RESPONSE)
       packer.write(msgid)
       packer.write(nil)
       io.write(res.data)
     when IOMsgpack
       packer = MessagePack::Packer.new(io)
-      packer.write_array_start(4)
+      packer.write_array_start(SimpleRpc::RESPONSE_SIZE)
       packer.write(SimpleRpc::RESPONSE)
       packer.write(msgid)
       packer.write(nil)
