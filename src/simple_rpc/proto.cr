@@ -58,15 +58,15 @@ module SimpleRpc::Proto
       class Client
         \{% for m in @type.methods %}
           \{% if m.visibility.stringify == ":public" %}
-            \{% if !m.return_type %}
-              \{% raise "method '#{m.name}' must have a return type" %}
-            \{% end %}
-
+            \{% if !m.return_type %} \{% raise "method '#{m.name}' must have a return type" %} \{% end %}
             \{% args_list = m.args.join(", ").id %}
             \{% args = m.args.map { |a| a.name }.join(", ").id %}
-
             def \{{m.name}}(\{{args_list}})
               request(\{{m.return_type.id}}, \{{m.name.stringify}}, \{{args.id}})
+            end
+
+            def \{{m.name}}!(\{{args_list}})
+              request!(\{{m.return_type.id}}, \{{m.name.stringify}}, \{{args.id}})
             end
           \{% end %}
         \{% end %}

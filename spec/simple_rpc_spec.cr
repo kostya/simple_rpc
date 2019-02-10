@@ -12,6 +12,11 @@ describe SimpleRpc do
         res.value!.should eq 33.6
       end
 
+      it "ok without wrapper" do
+        res = client.bla!("3.5", 9.6)
+        res.should eq 33.6
+      end
+
       it "ok raw request" do
         res = client.request(Float64, :bla, "3.5", 9.6)
         res.ok?.should eq true
@@ -23,6 +28,17 @@ describe SimpleRpc do
         res.ok?.should eq false
         res.message!.should eq "SimpleRpc::TypeCastError: Receive unexpected result type, expected String"
         res.value.should eq nil
+      end
+
+      it "ok raw request!" do
+        res = client.request!(Float64, :bla, "3.5", 9.6)
+        res.should eq 33.6
+      end
+
+      it "error raw request" do
+        expect_raises(SimpleRpc::TypeCastError, "Receive unexpected result type, expected String") do
+          client.request!(String, :bla, "3.5", 9.6)
+        end
       end
 
       it "ok no_args" do
@@ -74,6 +90,12 @@ describe SimpleRpc do
         res = client.bla("O_o", 9.6)
         res.message!.should eq "SimpleRpc::RuntimeError: Exception in task execution: Invalid Float64: O_o"
         res.value.should eq nil
+      end
+
+      it "exception without wrapper" do
+        expect_raises(SimpleRpc::RuntimeError, "Exception in task execution: Invalid Float64: O_o") do
+          client.bla!("O_o", 9.6)
+        end
       end
 
       it "next request after exception should be ok (was a bug)" do
