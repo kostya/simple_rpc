@@ -2,9 +2,9 @@ require "socket"
 require "msgpack"
 
 class SimpleRpc::Server
-  @server : TCPServer?
+  @server : TCPServer | UNIXServer | Nil
 
-  def initialize(@host : String, @port : Int32, @debug = false, @close_connection_after_request = false)
+  def initialize(@host : String = "127.0.0.1", @port : Int32 = 9999, @unixsocket : String? = nil, @debug = false, @close_connection_after_request = false)
   end
 
   private def read_context(io) : Context
@@ -55,7 +55,13 @@ class SimpleRpc::Server
   end
 
   def run
-    @server = server = TCPServer.new @host, @port
+    @server = server = if us = @unixsocket
+                         File.delete(us) rescue nil
+                         UNIXServer.new(us)
+                       else
+                         TCPServer.new @host, @port
+                       end
+
     loop do
       client = begin
         server.accept
@@ -73,5 +79,8 @@ class SimpleRpc::Server
   def close
     @server.try(&.close) rescue nil
     @server = nil
+    if us = @unixsocket
+      File.delete(us) rescue nil
+    end
   end
 end

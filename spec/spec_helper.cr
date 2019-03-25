@@ -1,9 +1,10 @@
 require "spec"
 require "../src/simple_rpc"
 
-HOST    = "127.0.0.1"
-PORT    = 8888
-TCPPORT = 8889
+HOST     = "127.0.0.1"
+PORT     = 8888
+TCPPORT  = 8889
+UNIXSOCK = "./tmp_spec_simple_rpc.sock"
 
 record Bla, x : String, y : Hash(String, Int32) { include MessagePack::Serializable }
 
@@ -118,7 +119,11 @@ class SpecProto2
 end
 
 spawn do
-  SpecProto::Server.new(HOST, PORT, false).run
+  SpecProto::Server.new(HOST, PORT, debug: false).run
+end
+
+spawn do
+  SpecProto::Server.new(unixsocket: UNIXSOCK, debug: false).run
 end
 
 def bad_server_handle(client)

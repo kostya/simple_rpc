@@ -26,8 +26,11 @@ class SimpleRpc::Client
   getter single : Connection?
   getter mode
 
-  def initialize(@host : String,
-                 @port : Int32,
+  getter host, port, unixsocket, command_timeout, connect_timeout
+
+  def initialize(@host : String = "127.0.0.1",
+                 @port : Int32 = 9999,
+                 @unixsocket : String? = nil,
                  @command_timeout : Float64? = nil,
                  @connect_timeout : Float64? = nil,
                  @mode : Mode = Mode::ConnectPerRequest,
@@ -131,7 +134,7 @@ class SimpleRpc::Client
   end
 
   private def create_connection
-    Connection.new(@host, @port, @command_timeout, @connect_timeout)
+    Connection.new(@host, @port, @unixsocket, @command_timeout, @connect_timeout)
   end
 
   private def pool!
@@ -252,10 +255,11 @@ class SimpleRpc::Client
   end
 
   private class Connection
-    getter socket : TCPSocket?
+    getter socket : TCPSocket | UNIXSocket | Nil
 
-    def initialize(@host : String,
-                   @port : Int32,
+    def initialize(@host : String = "127.0.0.1",
+                   @port : Int32 = 9999,
+                   @unixsocket : String? = nil,
                    @command_timeout : Float64? = nil,
                    @connect_timeout : Float64? = nil)
     end
@@ -265,7 +269,12 @@ class SimpleRpc::Client
     end
 
     private def connect
-      _socket = TCPSocket.new @host, @port, connect_timeout: @connect_timeout
+      _socket = if us = @unixsocket
+                  UNIXSocket.new(us)
+                else
+                  TCPSocket.new @host, @port, connect_timeout: @connect_timeout
+                end
+
       if t = @command_timeout
         _socket.read_timeout = t
         _socket.write_timeout = t
