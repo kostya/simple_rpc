@@ -123,6 +123,7 @@ spawn do
 end
 
 spawn do
+  File.delete(UNIXSOCK) rescue nil
   SpecProto::Server.new(unixsocket: UNIXSOCK, debug: false).run
 end
 

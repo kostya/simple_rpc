@@ -56,7 +56,6 @@ class SimpleRpc::Server
 
   def run
     @server = server = if us = @unixsocket
-                         File.delete(us) rescue nil
                          UNIXServer.new(us)
                        else
                          TCPServer.new @host, @port
@@ -79,8 +78,5 @@ class SimpleRpc::Server
   def close
     @server.try(&.close) rescue nil
     @server = nil
-    if us = @unixsocket
-      File.delete(us) rescue nil
-    end
   end
 end
