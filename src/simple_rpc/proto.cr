@@ -15,7 +15,7 @@ module SimpleRpc::Proto
               args_need_count = \{{ m.args.size.id }}
               if ctx.args_count != args_need_count
                 ctx.skip_values(ctx.args_count)
-                return ctx.write_error("bad arguments, expected #{ \{{m.args.stringify}} }, but got #{ctx.args_count} args")
+                return ctx.write_error("bad arguments, expected \{{m.args.id}}, but got #{ctx.args_count} args")
               end
 
               \{% if m.args.size > 0 %}
@@ -23,17 +23,19 @@ module SimpleRpc::Proto
                   \%unpacker_\{{arg.id} = MessagePack::NodeUnpacker.new(ctx.unpacker.read_node)
                 \{% end %}
 
-                begin
-                  \{% for arg in m.args %}
-                    \{% if arg.restriction %}
-                      \%_var_\{{arg.id} = Union(\{{ arg.restriction }}).new(\%unpacker_\{{arg.id})
-                    \{% else %}
-                      \{% raise "argument '#{arg}' in method '#{m.name}' must have a type restriction" %}
-                    \{% end %}
+                \{% for arg in m.args %}
+                  \{% if arg.restriction %}
+                    \%_var_\{{arg.id} =
+                      begin
+                        Union(\{{ arg.restriction }}).new(\%unpacker_\{{arg.id})
+                      rescue MessagePack::TypeCastError
+                        token = \%unpacker_\{{arg.id}.@node.tokens.first
+                        return ctx.write_error("bad arguments, expected \{{m.args.id}}, but got \{{arg.name}}: #{MessagePack::Token.to_s(token)}")
+                      end
+                  \{% else %}
+                    \{% raise "argument '#{arg}' in method '#{m.name}' must have a type restriction" %}
                   \{% end %}
-                rescue MessagePack::TypeCastError
-                  return ctx.write_error("bad arguments, expected #{ \{{m.args.stringify}} }, but got something else")
-                end
+                \{% end %}
               \{% end %}
 
               res = begin
