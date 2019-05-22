@@ -1,5 +1,7 @@
+require "logger"
+
 record SimpleRpc::Context, msgid : UInt32, method : String, args_count : UInt32,
-  unpacker : MessagePack::IOUnpacker, io : IO, notify : Bool do
+  unpacker : MessagePack::IOUnpacker, io : IO, notify : Bool, logger : Logger? = nil, created_at : Time = Time.now do
   record RawMsgpack, data : Bytes
   record IOMsgpack, io : IO
 
@@ -30,6 +32,11 @@ record SimpleRpc::Context, msgid : UInt32, method : String, args_count : UInt32,
     end
 
     io.flush
+
+    if l = @logger
+      l.info { "SimpleRpc: #{method}(#{args_count}) (in #{Time.now - created_at})" }
+    end
+
     true
   end
 
@@ -38,6 +45,11 @@ record SimpleRpc::Context, msgid : UInt32, method : String, args_count : UInt32,
 
     {SimpleRpc::RESPONSE, msgid, msg, nil}.to_msgpack(io)
     io.flush
+
+    if l = @logger
+      l.error { "SimpleRpc: #{method}(#{args_count}): #{msg} (in #{Time.now - created_at})" }
+    end
+
     true
   end
 end

@@ -91,7 +91,7 @@ class SimpleRpc::Client
     raw_notify(name, args)
   end
 
-  private def raw_request(method, args, msgid = SimpleRpc::DEFAULT_MSG_ID)
+  def raw_request(method, args, msgid = SimpleRpc::DEFAULT_MSG_ID)
     connection = get_connection
 
     # establish connection if needed

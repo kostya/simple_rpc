@@ -1,10 +1,11 @@
 require "socket"
 require "msgpack"
+require "logger"
 
 class SimpleRpc::Server
   @server : TCPServer | UNIXServer | Nil
 
-  def initialize(@host : String = "127.0.0.1", @port : Int32 = 9999, @unixsocket : String? = nil, @debug = false, @close_connection_after_request = false)
+  def initialize(@host : String = "127.0.0.1", @port : Int32 = 9999, @unixsocket : String? = nil, @logger : Logger? = nil, @close_connection_after_request = false)
   end
 
   private def read_context(io) : Context
@@ -31,7 +32,7 @@ class SimpleRpc::Server
     args_count = unpacker.read_array_size
     unpacker.finish_token!
 
-    Context.new(msgid, method, args_count, unpacker, io, !request)
+    Context.new(msgid, method, args_count, unpacker, io, !request, @logger)
   end
 
   def handle(io)
@@ -44,14 +45,12 @@ class SimpleRpc::Server
       break if @close_connection_after_request
     end
   rescue ex : Errno | IO::Error | Socket::Error | MessagePack::TypeCastError | MessagePack::UnexpectedByteError
-    debug(ex.message)
+    if l = @logger
+      l.error { "SimpleRpc: protocall ERROR #{ex.message}" }
+    end
   rescue ex : MessagePack::EofError
   ensure
     io.close rescue nil
-  end
-
-  private def debug(msg)
-    puts(msg) if @debug
   end
 
   def run

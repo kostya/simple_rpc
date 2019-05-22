@@ -1,6 +1,8 @@
 require "spec"
 require "../src/simple_rpc"
 
+L = Logger.new(File.open("./spec.log", "a"))
+
 HOST     = "127.0.0.1"
 PORT     = 8888
 TCPPORT  = 8889
@@ -119,12 +121,12 @@ class SpecProto2
 end
 
 spawn do
-  SpecProto::Server.new(HOST, PORT, debug: false).run
+  SpecProto::Server.new(HOST, PORT, logger: L).run
 end
 
 spawn do
   File.delete(UNIXSOCK) rescue nil
-  SpecProto::Server.new(unixsocket: UNIXSOCK, debug: false).run
+  SpecProto::Server.new(unixsocket: UNIXSOCK, logger: L).run
 end
 
 def bad_server_handle(client)
