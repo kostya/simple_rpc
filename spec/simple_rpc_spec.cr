@@ -124,28 +124,28 @@ describe SimpleRpc do
         it "bad params" do
           client2 = SpecProto2::Client.new(HOST, PORT, mode: clmode)
           res = client2.bla(1.3, "2.5")
-          res.message!.should eq "SimpleRpc::RuntimeError: bad arguments, expected [x : String, y : Float64], but got x: 1.3"
+          res.message!.should eq "SimpleRpc::RuntimeError: bad arguments, expected [x : String, y : Float64], but got x: FloatT(1.3)"
           res.value.should eq nil
         end
 
         it "ok sleep" do
-          t = Time.now
+          t = Time.local
           res = client.sleepi(0.1, 1)
           res.ok?.should eq true
           res.value.should eq 1
-          (Time.now - t).to_f.should be < 0.2
-          (Time.now - t).to_f.should be >= 0.1
+          (Time.local - t).to_f.should be < 0.2
+          (Time.local - t).to_f.should be >= 0.1
         end
 
         it "sleep timeout" do
           client_t = SpecProto::Client.new(HOST, PORT, mode: clmode, command_timeout: 0.2)
 
-          t = Time.now
+          t = Time.local
           res = client_t.sleepi(0.5, 2)
           res.message!.should eq "SimpleRpc::CommandTimeoutError: Command timed out"
           res.value.should eq nil
-          (Time.now - t).to_f.should be < 0.25
-          (Time.now - t).to_f.should be >= 0.2
+          (Time.local - t).to_f.should be < 0.25
+          (Time.local - t).to_f.should be >= 0.2
         end
 
         it "ok raw result" do
@@ -208,7 +208,7 @@ describe SimpleRpc do
             res.value!.should eq 1
 
             res = client.request(Int32, :unions, 1.2)
-            res.message!.should eq "SimpleRpc::RuntimeError: bad arguments, expected [x : Int32 | String], but got x: 1.2"
+            res.message!.should eq "SimpleRpc::RuntimeError: bad arguments, expected [x : Int32 | String], but got x: FloatT(1.2)"
           end
 
           it "string" do
@@ -221,7 +221,7 @@ describe SimpleRpc do
             res.value!.should eq "1"
 
             res = client.request(Int32, :unions, 1.2)
-            res.message!.should eq "SimpleRpc::RuntimeError: bad arguments, expected [x : Int32 | String], but got x: 1.2"
+            res.message!.should eq "SimpleRpc::RuntimeError: bad arguments, expected [x : Int32 | String], but got x: FloatT(1.2)"
           end
 
           it "float" do
@@ -234,7 +234,7 @@ describe SimpleRpc do
             res.value!.should eq 5.5
 
             res = client.request(Int32, :unions, 1.2)
-            res.message!.should eq "SimpleRpc::RuntimeError: bad arguments, expected [x : Int32 | String], but got x: 1.2"
+            res.message!.should eq "SimpleRpc::RuntimeError: bad arguments, expected [x : Int32 | String], but got x: FloatT(1.2)"
           end
 
           it "array" do
@@ -247,7 +247,7 @@ describe SimpleRpc do
             res.value!.should eq [1, 2, 3]
 
             res = client.request(Int32, :unions, 1.2)
-            res.message!.should eq "SimpleRpc::RuntimeError: bad arguments, expected [x : Int32 | String], but got x: 1.2"
+            res.message!.should eq "SimpleRpc::RuntimeError: bad arguments, expected [x : Int32 | String], but got x: FloatT(1.2)"
           end
 
           it "bool" do
@@ -260,7 +260,7 @@ describe SimpleRpc do
             res.value!.should eq false
 
             res = client.request(Int32, :unions, 1.2)
-            res.message!.should eq "SimpleRpc::RuntimeError: bad arguments, expected [x : Int32 | String], but got x: 1.2"
+            res.message!.should eq "SimpleRpc::RuntimeError: bad arguments, expected [x : Int32 | String], but got x: FloatT(1.2)"
           end
         end
 
@@ -301,7 +301,7 @@ describe SimpleRpc do
         it "raw request, wrong arguments types" do
           res = client.request(Float64, :bla, 3.5, 1.1)
           res.ok?.should eq false
-          res.message!.should eq "SimpleRpc::RuntimeError: bad arguments, expected [x : String, y : Float64], but got x: 3.5"
+          res.message!.should eq "SimpleRpc::RuntimeError: bad arguments, expected [x : String, y : Float64], but got x: FloatT(3.5)"
 
           # after this, should be ok request
           res = client.bla("3.5", 9.6)
@@ -312,7 +312,7 @@ describe SimpleRpc do
         it "raw request, wrong arguments types" do
           res = client.request(Float64, :bla, "3.5", "zopa")
           res.ok?.should eq false
-          res.message!.should eq "SimpleRpc::RuntimeError: bad arguments, expected [x : String, y : Float64], but got y: \"zopa\""
+          res.message!.should eq "SimpleRpc::RuntimeError: bad arguments, expected [x : String, y : Float64], but got y: StringT(\"zopa\")"
 
           # after this, should be ok request
           res = client.bla("3.5", 9.6)
@@ -450,9 +450,9 @@ describe SimpleRpc do
               end
             end
 
-            t = Time.now
+            t = Time.local
             (n * m).times { ch.receive }
-            dt = (Time.now - t).to_f
+            dt = (Time.local - t).to_f
 
             dt.should be >= (0.1 * m)
             dt.should be < (0.2 * m)
