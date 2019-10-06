@@ -165,7 +165,7 @@ describe SimpleRpc do
             res = client.request(MessagePack::Type, :invariants, 0)
             res.ok?.should eq true
             v = res.value!
-            v.as(Int64).should eq 1
+            v.as(Int).should eq 1
           end
 
           it "string" do
