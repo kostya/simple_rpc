@@ -76,6 +76,17 @@ result = client.request!(Float64, :bla, 3, "5.5") # here can raise SimpleRpc::Er
 p result # => 16.5
 ```
 
+#### If you dont know what return type is, use MessagePack::Type:
+```crystal
+require "simple_rpc"
+
+client = SimpleRpc::Client.new("127.0.0.1", 9000)
+result = client.request!(MessagePack::Type, :bla, 3, "5.5")
+p result.class # => Float64
+p typeof(result) # => (Array(MessagePack::Type) | Bool | Float64 | Hash(MessagePack::Type, MessagePack::Type) | Int16 | Int32 | Int64 | Int8 | String | UInt16 | UInt32 | UInt64 | UInt8 | Nil)
+p result # => 16.5
+```
+
 #### If you want to exchange complex data types, you should include MessagePack::Serializable
 ```crystal
 require "simple_rpc"
