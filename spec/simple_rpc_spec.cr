@@ -54,7 +54,7 @@ describe SimpleRpc do
         end
 
         it "ok with_default_value" do
-          res = client.with_default_value(2)
+          res = client.with_default_value("2")
           res.value!.should eq 3
 
           res = client.with_default_value

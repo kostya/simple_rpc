@@ -25,7 +25,7 @@ module SimpleRpc::Proto
               args_need_count = \{{ m.args.size.id }}
               if ctx.args_count != args_need_count
                 ctx.skip_values(ctx.args_count)
-                return ctx.write_error("bad arguments, expected \{{m.args.id}}, but got #{ctx.args_count} args")
+                return ctx.write_error(\\%Q[bad arguments, expected \{{m.args.id}}, but got #{ctx.args_count} args])
               end
 
               \{% if m.args.size > 0 %}
@@ -40,7 +40,7 @@ module SimpleRpc::Proto
                         Union(\{{ arg.restriction }}).new(\%unpacker_\{{arg.id})
                       rescue MessagePack::TypeCastError
                         token = \%unpacker_\{{arg.id}.@node.tokens.first
-                        return ctx.write_error("bad arguments, expected \{{m.args.id}}, but got \{{arg.name}}: #{MessagePack::Token.to_s(token)}")
+                        return ctx.write_error(\\%Q[bad arguments, expected \{{m.args.id}}, but got \{{arg.name}}: #{MessagePack::Token.to_s(token)}])
                       end
                   \{% else %}
                     \{% raise "argument '#{arg}' in method '#{m.name}' must have a type restriction" %}
@@ -49,9 +49,9 @@ module SimpleRpc::Proto
               \{% end %}
 
               res = begin
-                k = \{{@type}}.new
-                k.simple_rpc_context = ctx
-                k.\{{m.name}}(\{% for arg in m.args %} \%_var_\{{arg.id}, \{% end %})
+                obj = \{{@type}}.new
+                obj.simple_rpc_context = ctx
+                obj.\{{m.name}}(\{% for arg in m.args %} \%_var_\{{arg.id}, \{% end %})
               rescue ex
                 return ctx.write_error("Exception in task execution: #{ex.message}")
               end

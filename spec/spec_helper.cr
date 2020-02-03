@@ -35,8 +35,8 @@ class SpecProto
     0
   end
 
-  def with_default_value(x : Int32 = 1) : Int32
-    x + 1
+  def with_default_value(x : String = "1") : Int32
+    x.to_i + 1
   end
 
   def raw_result : SimpleRpc::Context::RawMsgpack
