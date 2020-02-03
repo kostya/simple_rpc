@@ -35,7 +35,7 @@ class MyRpc
 end
 
 spawn do
-  # running rcp server on 9000 port in background
+  # running RPC server on 9000 port in background fiber
   MyRpc::Server.new("127.0.0.1", 9000).run
 end
 
