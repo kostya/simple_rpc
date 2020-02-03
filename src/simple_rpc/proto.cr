@@ -5,6 +5,16 @@ module SimpleRpc::Proto
     class Client < SimpleRpc::Client; end
     class Server < SimpleRpc::Server; end
 
+    @simple_rpc_context : SimpleRpc::Context?
+
+    protected def simple_rpc_context=(ctx)
+      @simple_rpc_context = ctx
+    end
+
+    protected def simple_rpc_context
+      @simple_rpc_context.not_nil!
+    end
+
     macro finished
       def self.handle_request(ctx : SimpleRpc::Context)
         \{% begin %}
@@ -39,7 +49,9 @@ module SimpleRpc::Proto
               \{% end %}
 
               res = begin
-                \{{@type}}.new.\{{m.name}}(\{% for arg in m.args %} \%_var_\{{arg.id}, \{% end %})
+                k = \{{@type}}.new
+                k.simple_rpc_context = ctx
+                k.\{{m.name}}(\{% for arg in m.args %} \%_var_\{{arg.id}, \{% end %})
               rescue ex
                 return ctx.write_error("Exception in task execution: #{ex.message}")
               end
