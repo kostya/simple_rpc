@@ -21,17 +21,26 @@ ch = Channel(Bool).new
 
 n = 0
 s = 0.0
-t = Time.now
+t = Time.local
+c = 0
+e = 0
 
+CLIENT = Bench::Client.new("127.0.0.1", 9003, mode: SimpleRpc::Client::Mode::Pool, pool_size: CONCURRENCY + 1)
 CONCURRENCY.times do
   spawn do
-    client = Bench::Client.new("127.0.0.1", 9003, mode: mode, pool_size: CONCURRENCY + 1)
-    (REQUESTS / CONCURRENCY).times do
+    client = if mode == SimpleRpc::Client::Mode::Pool
+               CLIENT
+             else
+               Bench::Client.new("127.0.0.1", 9003, mode: mode, pool_size: CONCURRENCY + 1)
+             end
+    (REQUESTS // CONCURRENCY).times do
       n += 1
       res = client.request(Float64, :doit, 1 / n.to_f)
       if res.ok?
         s += res.value!
+        c += 1
       else
+        e += 1
         raise res.message!
       end
     end
@@ -40,5 +49,5 @@ CONCURRENCY.times do
 end
 
 CONCURRENCY.times { ch.receive }
-p s
-p Time.now - t
+puts "result: #{s}, reqs_to_run: #{CONCURRENCY * (REQUESTS // CONCURRENCY)}, reqs_ok: #{c}, reqs_fails: #{e}"
+p Time.local - t

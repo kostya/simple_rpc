@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/kostya/simple_rpc.svg?branch=master)](http://travis-ci.org/kostya/simple_rpc)
 
-Remote Procedure Call Server and Client for Crystal. Implements msgpack-rpc protocall. Designed to be reliable and stable (catch every possible protocall/socket errors).
+Remote Procedure Call Server and Client for Crystal. Implements msgpack-rpc protocall. Designed to be reliable and stable (catch every possible protocall/socket errors). It also quite performant: benchmark reach 201660 rps in pool mode (single server core, single client core).
 
 ## Installation
 
@@ -44,30 +44,11 @@ sleep 0.1
 
 # create rpc client
 client = MyRpc::Client.new("127.0.0.1", 9000)
-result = client.bla(3, "5.5")
-
-if result.ok?
-  p result.value! + 1 # => 17.5
-else
-  p result.message!
-end
+result = client.bla!(3, "5.5") # here can raise SimpleRpc::Errors
+p result # => 16.5
 ```
 
 #### When client code have no access to server proto, you can call raw requests:
-```crystal
-require "simple_rpc"
-
-client = SimpleRpc::Client.new("127.0.0.1", 9000)
-result = client.request(Float64, :bla, 3, "5.5") # no raises if error
-
-if result.ok?
-  p result.value! # => 16.5
-else
-  p result.message!
-end
-```
-
-#### When you dont want to check errors, and ok with raise on problem:
 ```crystal
 require "simple_rpc"
 
@@ -76,24 +57,35 @@ result = client.request!(Float64, :bla, 3, "5.5") # here can raise SimpleRpc::Er
 p result # => 16.5
 ```
 
-#### If you dont know what return type is, use MessagePack::Type:
+#### When you dont want to raises on problems, you can check result by yourself:
 ```crystal
 require "simple_rpc"
 
 client = SimpleRpc::Client.new("127.0.0.1", 9000)
-result = client.request!(MessagePack::Type, :bla, 3, "5.5")
-p result.class # => Float64
-p typeof(result) # => (Array(MessagePack::Type) | Bool | Float64 | Hash(MessagePack::Type, MessagePack::Type) | Int16 | Int32 | Int64 | Int8 | String | UInt16 | UInt32 | UInt64 | UInt8 | Nil)
-p result # => 16.5
+result = client.request(Float64, :bla, 3, "5.5") # here can raise SimpleRpc::Errors
+if result.ok?
+  p result.value! # => 16.5
+else
+  p result.message!
+end
 ```
 
-#### If you want to exchange complex data types, you should include MessagePack::Serializable
+#### If you dont know what return type is, use MessagePack::Any:
 ```crystal
 require "simple_rpc"
 
-record Result, a : Int32, b : String { include MessagePack::Serializable }
+client = SimpleRpc::Client.new("127.0.0.1", 9000)
+result = client.request!(MessagePack::Any, :bla, 3, "5.5")
+p result.as_f + 1 # => 17.5
+```
 
-class MyData
+#### If you want to exchange complex data types, you should include MessagePack::Serializable to your data
+```crystal
+require "simple_rpc"
+
+record MyResult, a : Int32, b : String { include MessagePack::Serializable }
+
+class MyRequest
   include MessagePack::Serializable
 
   property a : Int32
@@ -106,7 +98,7 @@ end
 class MyRpc 
   include SimpleRpc::Proto
 
-  def complex(data : MyData) : Result
+  def doit(req : MyRequest) : MyResult
     # ...
   end
 end
