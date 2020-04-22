@@ -1,5 +1,5 @@
 module SimpleRpc
-  VERSION = "1.3.0"
+  VERSION = "1.3.1"
 
   REQUEST  = 0_i8
   NOTIFY   = 2_i8
