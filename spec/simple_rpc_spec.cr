@@ -110,7 +110,7 @@ describe SimpleRpc do
         it "no server" do
           client_bad = SpecProto::Client.new(HOST, PORT + 10000, mode: clmode)
           res = client_bad.bla("O_o", 9.6)
-          res.message!.should eq "SimpleRpc::CannotConnectError: Errno: Error connecting to '#{HOST}:#{PORT + 10000}': Connection refused"
+          res.message!.should eq "SimpleRpc::CannotConnectError: Socket::ConnectError: Error connecting to '#{HOST}:#{PORT + 10000}': Connection refused"
           res.value.should eq nil
         end
 

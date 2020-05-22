@@ -59,6 +59,8 @@ module SimpleRpc::Proto
               return ctx.write_result(res)
           \{% end %}
         \{% end %}
+        else
+          # skip
         end
         \{% end %}
       end

@@ -1,7 +1,8 @@
 require "spec"
 require "../src/simple_rpc"
 
-L = Logger.new(File.open("./spec.log", "a"))
+L = Log.for("specs")
+L.backend = Log::IOBackend.new(File.open("spec.log", "a"))
 
 HOST     = "127.0.0.1"
 PORT     = 8888

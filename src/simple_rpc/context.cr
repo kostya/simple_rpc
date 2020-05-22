@@ -1,7 +1,7 @@
-require "logger"
+require "log"
 
 record SimpleRpc::Context, msgid : UInt32, method : String, args_count : UInt32,
-  unpacker : MessagePack::IOUnpacker, io : IO, notify : Bool, logger : Logger? = nil, created_at : Time = Time.local do
+  unpacker : MessagePack::IOUnpacker, io : IO, notify : Bool, logger : Log? = nil, created_at : Time = Time.local do
   record RawMsgpack, data : Bytes
   record IOMsgpack, io : IO
 

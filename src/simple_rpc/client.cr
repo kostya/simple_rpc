@@ -147,7 +147,7 @@ class SimpleRpc::Client
       _pool = pool!
       begin
         _pool.checkout
-      rescue IO::Timeout
+      rescue IO::TimeoutError
         # not free connection in the pool
         raise PoolTimeoutError.new("No free connection (used #{_pool.size} of #{_pool.capacity}) after timeout of #{_pool.timeout}s")
       end
@@ -164,6 +164,8 @@ class SimpleRpc::Client
       conn.close
     when Mode::Pool
       pool!.checkin(conn)
+    else
+      # skip
     end
   end
 
@@ -251,6 +253,8 @@ class SimpleRpc::Client
     when Mode::Single
       @single.try(&.close)
       @single = nil
+    else
+      # skip
     end
   end
 
@@ -282,18 +286,18 @@ class SimpleRpc::Client
       _socket.read_buffering = true
       _socket.sync = false
       _socket
-    rescue ex : IO::Timeout | Errno | Socket::Error
+    rescue ex : IO::TimeoutError | Socket::Error | IO::Error
       raise SimpleRpc::CannotConnectError.new("#{ex.class}: #{ex.message}")
     end
 
     def catch_connection_errors
       yield
-    rescue ex : Errno | IO::Error | MessagePack::EofError
-      close
-      raise SimpleRpc::ConnectionLostError.new("#{ex.class}: #{ex.message}")
-    rescue ex : IO::Timeout
+    rescue ex : IO::TimeoutError
       close
       raise SimpleRpc::CommandTimeoutError.new("Command timed out")
+    rescue ex : Socket::Error | IO::Error | MessagePack::EofError # Errno
+      close
+      raise SimpleRpc::ConnectionLostError.new("#{ex.class}: #{ex.message}")
     end
 
     def connected?

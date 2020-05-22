@@ -1,11 +1,11 @@
 require "socket"
 require "msgpack"
-require "logger"
+require "log"
 
 class SimpleRpc::Server
   @server : TCPServer | UNIXServer | Nil
 
-  def initialize(@host : String = "127.0.0.1", @port : Int32 = 9999, @unixsocket : String? = nil, @logger : Logger? = nil, @close_connection_after_request = false)
+  def initialize(@host : String = "127.0.0.1", @port : Int32 = 9999, @unixsocket : String? = nil, @logger : Log? = nil, @close_connection_after_request = false)
   end
 
   private def read_context(io) : Context
@@ -44,7 +44,7 @@ class SimpleRpc::Server
       handle_request(ctx) || ctx.write_error("method '#{ctx.method}' not found")
       break if @close_connection_after_request
     end
-  rescue ex : Errno | IO::Error | Socket::Error | MessagePack::TypeCastError | MessagePack::UnexpectedByteError
+  rescue ex : IO::Error | Socket::Error | MessagePack::TypeCastError | MessagePack::UnexpectedByteError
     if l = @logger
       l.error { "SimpleRpc: protocall ERROR #{ex.message}" }
     end
@@ -63,7 +63,7 @@ class SimpleRpc::Server
     loop do
       client = begin
         server.accept
-      rescue IO::Error
+      rescue Socket::Error
         close
         return
       end
