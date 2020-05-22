@@ -62,7 +62,7 @@ p result # => 16.5
 require "simple_rpc"
 
 client = SimpleRpc::Client.new("127.0.0.1", 9000)
-result = client.request(Float64, :bla, 3, "5.5") # here can raise SimpleRpc::Errors
+result = client.request(Float64, :bla, 3, "5.5") # no raise on error
 if result.ok?
   p result.value! # => 16.5
 else
