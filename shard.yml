@@ -9,7 +9,7 @@ crystal: "< 2.0.0"
 dependencies:
   msgpack:
     github: crystal-community/msgpack-crystal
-    version: ">= 0.16.0"
+    version: ">= 0.17.1"
   pool:
     github: ysbaddaden/pool
 
