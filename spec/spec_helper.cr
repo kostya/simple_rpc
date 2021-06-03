@@ -4,10 +4,14 @@ require "../src/simple_rpc"
 L = Log.for("specs")
 L.backend = Log::IOBackend.new(File.open("spec.log", "a"))
 
-HOST     = "127.0.0.1"
-PORT     = 8888
-TCPPORT  = 8889
-UNIXSOCK = "./tmp_spec_simple_rpc.sock"
+HOST         = "127.0.0.1"
+PORT         = 8888
+PORT2        = 8889
+PORT_BAD     = 9999
+TCPPORT      = 7777
+UNIXSOCK     = "./tmp_spec_simple_rpc.sock"
+UNIXSOCK2    = "./tmp_spec_simple_rpc2.sock"
+UNIXSOCK_BAD = "./tmp_spec_simple_rpc_bad.sock"
 
 record Bla, x : String, y : Hash(String, Int32) { include MessagePack::Serializable }
 
@@ -136,12 +140,40 @@ def bad_server_handle(client)
   client.flush
 end
 
+def should_spend(timeout, delta = 0.01)
+  t = Time.local
+  res = yield
+  (Time.local - t).to_f.should be_close(timeout, delta)
+  res
+end
+
+class SimpleRpc::Client
+  getter last_used_connection : Connection?
+
+  def get_connection
+    res = previous_def
+    @last_used_connection = res
+    res
+  end
+end
+
 spawn do
   bad_server = TCPServer.new(HOST, TCPPORT)
   loop do
     cli = bad_server.accept
     spawn bad_server_handle(cli)
   end
+end
+
+def with_run_server(server, start_after = 0)
+  spawn do
+    sleep start_after
+    server.run
+  end
+  yield(server)
+ensure
+  server.close
+  sleep 0.1
 end
 
 sleep 0.1

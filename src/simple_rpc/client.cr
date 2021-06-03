@@ -34,8 +34,13 @@ class SimpleRpc::Client
                  @command_timeout : Float64? = nil,
                  @connect_timeout : Float64? = nil,
                  @mode : Mode = Mode::ConnectPerRequest,
-                 pool_size = 20,
-                 pool_timeout = 5.0)
+                 pool_size = 20,                 # pool size for mode = Mode::Pool
+                 pool_timeout = 5.0,             # pool timeout for mode = Mode::Pool
+                 @create_connection_retries = 0, # sometimes, server not ready for a cuple seconds (restarted for example),
+                 # and we can set amount of retries to create connection (by default 0),
+                 # when it exceeded it will raise SimpleRpc::CannotConnectError
+                 @create_connection_retry_interval = 0.5 # sleep interval between attempts to create connection is seconds
+                 )
     if @mode == Mode::Pool
       @pool = ConnectionPool(Connection).new(capacity: pool_size, timeout: pool_timeout) { create_connection }
     end
@@ -92,56 +97,59 @@ class SimpleRpc::Client
   end
 
   def raw_request(method, args, msgid = SimpleRpc::DEFAULT_MSG_ID)
-    connection = get_connection
-
-    # establish connection if needed
-    connection.socket
-
-    # write request to server
-    if @mode.connect_per_request?
-      write_request(connection, method, args, msgid)
-    else
-      begin
+    with_connection do |connection|
+      # write request to server
+      if @mode.connect_per_request?
         write_request(connection, method, args, msgid)
-      rescue SimpleRpc::ConnectionError
-        # reconnecting here, if needed
-        write_request(connection, method, args, msgid)
-      end
-    end
-
-    # read request from server
-    res = connection.catch_connection_errors do
-      begin
-        unpacker = MessagePack::IOUnpacker.new(connection.socket)
-        msg = read_msg_id(unpacker)
-        unless msgid == msg
-          connection.close
-          raise SimpleRpc::ProtocallError.new("unexpected msgid: expected #{msgid}, but got #{msg}")
+      else
+        begin
+          write_request(connection, method, args, msgid)
+        rescue SimpleRpc::ConnectionError
+          # reconnecting here, if needed
+          write_request(connection, method, args, msgid)
         end
-
-        yield(MessagePack::NodeUnpacker.new(unpacker.read_node))
-      rescue ex : MessagePack::TypeCastError | MessagePack::UnexpectedByteError
-        connection.close
-        raise SimpleRpc::ProtocallError.new(ex.message)
       end
-    end
 
-    res
+      # read request from server
+      res = connection.catch_connection_errors do
+        begin
+          unpacker = MessagePack::IOUnpacker.new(connection.socket)
+          msg = read_msg_id(unpacker)
+          unless msgid == msg
+            connection.close
+            raise SimpleRpc::ProtocallError.new("unexpected msgid: expected #{msgid}, but got #{msg}")
+          end
+
+          yield(MessagePack::NodeUnpacker.new(unpacker.read_node))
+        rescue ex : MessagePack::TypeCastError | MessagePack::UnexpectedByteError
+          connection.close
+          raise SimpleRpc::ProtocallError.new(ex.message)
+        end
+      end
+
+      res
+    end
+  end
+
+  private def with_connection
+    connection = get_connection
+    connection.socket # establish connection if needed
+    yield(connection)
   ensure
     if conn = connection
-      release_connection(conn)
+      release_connection(connection)
     end
   end
 
-  private def create_connection
-    Connection.new(@host, @port, @unixsocket, @command_timeout, @connect_timeout)
+  private def create_connection : Connection
+    Connection.new(@host, @port, @unixsocket, @command_timeout, @connect_timeout, @create_connection_retries, @create_connection_retry_interval)
   end
 
-  private def pool!
+  private def pool! : ConnectionPool(Connection)
     @pool.not_nil!
   end
 
-  private def get_connection
+  private def get_connection : Connection
     case @mode
     when Mode::Pool
       _pool = pool!
@@ -149,7 +157,7 @@ class SimpleRpc::Client
         _pool.checkout
       rescue IO::TimeoutError
         # not free connection in the pool
-        raise PoolTimeoutError.new("No free connection (used #{_pool.size} of #{_pool.capacity}) after timeout of #{_pool.timeout}s")
+        raise SimpleRpc::PoolTimeoutError.new("No free connection (used #{_pool.size} of #{_pool.capacity}) after timeout of #{_pool.timeout}s")
       end
     when Mode::Single
       @single ||= create_connection
@@ -170,27 +178,19 @@ class SimpleRpc::Client
   end
 
   private def raw_notify(method, args)
-    connection = get_connection
-
-    # establish connection if needed
-    connection.socket
-
-    # write request to server
-    if @mode.connect_per_request?
-      write_request(connection, method, args, SimpleRpc::DEFAULT_MSG_ID, true)
-    else
-      begin
+    with_connection do |connection|
+      # write request to server
+      if @mode.connect_per_request?
         write_request(connection, method, args, SimpleRpc::DEFAULT_MSG_ID, true)
-      rescue SimpleRpc::ConnectionError
-        # reconnecting here, if needed
-        write_request(connection, method, args, SimpleRpc::DEFAULT_MSG_ID, true)
+      else
+        begin
+          write_request(connection, method, args, SimpleRpc::DEFAULT_MSG_ID, true)
+        rescue SimpleRpc::ConnectionError
+          # reconnecting here, if needed
+          write_request(connection, method, args, SimpleRpc::DEFAULT_MSG_ID, true)
+        end
       end
-    end
-
-    nil
-  ensure
-    if conn = connection
-      release_connection(conn)
+      nil
     end
   end
 
@@ -260,19 +260,39 @@ class SimpleRpc::Client
 
   private class Connection
     getter socket : TCPSocket | UNIXSocket | Nil
+    getter connection_recreate_attempt
 
     def initialize(@host : String = "127.0.0.1",
                    @port : Int32 = 9999,
                    @unixsocket : String? = nil,
                    @command_timeout : Float64? = nil,
-                   @connect_timeout : Float64? = nil)
+                   @connect_timeout : Float64? = nil,
+                   @create_connection_retries = 0,
+                   @create_connection_retry_interval = 0.5)
+      @connection_recreate_attempt = 0
     end
 
     def socket
-      @socket ||= connect
+      @socket ||= retried_connect
     end
 
-    private def connect
+    private def retried_connect : TCPSocket | UNIXSocket
+      @connection_recreate_attempt = 0
+      while true
+        begin
+          return connect
+        rescue ex : SimpleRpc::CannotConnectError
+          if @connection_recreate_attempt >= @create_connection_retries
+            raise ex
+          else
+            sleep(@create_connection_retry_interval)
+            @connection_recreate_attempt += 1
+          end
+        end
+      end
+    end
+
+    private def connect : TCPSocket | UNIXSocket
       _socket = if us = @unixsocket
                   UNIXSocket.new(us)
                 else

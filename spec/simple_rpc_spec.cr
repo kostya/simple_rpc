@@ -129,23 +129,21 @@ describe SimpleRpc do
         end
 
         it "ok sleep" do
-          t = Time.local
-          res = client.sleepi(0.1, 1)
-          res.ok?.should eq true
-          res.value.should eq 1
-          (Time.local - t).to_f.should be < 0.2
-          (Time.local - t).to_f.should be >= 0.1
+          should_spend(0.1, 0.05) do
+            res = client.sleepi(0.1, 1)
+            res.ok?.should eq true
+            res.value.should eq 1
+          end
         end
 
         it "sleep timeout" do
           client_t = SpecProto::Client.new(HOST, PORT, mode: clmode, command_timeout: 0.2)
 
-          t = Time.local
-          res = client_t.sleepi(0.5, 2)
-          res.message!.should eq "SimpleRpc::CommandTimeoutError: Command timed out"
-          res.value.should eq nil
-          (Time.local - t).to_f.should be < 0.25
-          (Time.local - t).to_f.should be >= 0.2
+          should_spend(0.2, 0.05) do
+            res = client_t.sleepi(0.5, 2)
+            res.message!.should eq "SimpleRpc::CommandTimeoutError: Command timed out"
+            res.value.should eq nil
+          end
         end
 
         it "ok raw result" do
@@ -456,6 +454,70 @@ describe SimpleRpc do
 
             dt.should be >= (0.1 * m)
             dt.should be < (0.2 * m)
+          end
+        end
+      end
+    end
+  end
+
+  [SimpleRpc::Client::Mode::ConnectPerRequest, SimpleRpc::Client::Mode::Pool, SimpleRpc::Client::Mode::Single].each do |clmode|
+    [{host: HOST, port: PORT_BAD, mode: clmode, unixsocket: nil}, {unixsocket: UNIXSOCK_BAD, host: "", port: 1, mode: clmode}].each do |client_opts|
+      context "CLIENT(#{client_opts[:unixsocket] ? "UNIX" : "TCP"}:#{clmode})" do
+        context "create connection" do
+          it "raise when no connection, immediately" do
+            client = SpecProto::Client.new(**client_opts)
+            should_spend(0.0, 0.05) do
+              res = client.bla("3.5", 9.6)
+              res.ok?.should eq false
+              res.message!.should contain "SimpleRpc::CannotConnectError"
+            end
+
+            client.last_used_connection.try(&.connection_recreate_attempt).should eq 0
+          end
+
+          it "raise when no connection, but with reconnectings" do
+            opts = client_opts.merge(create_connection_retries: 3, create_connection_retry_interval: 0.2)
+
+            client = SpecProto::Client.new(**opts)
+            should_spend(0.6, 0.05) do
+              res = client.bla("3.5", 9.6)
+              res.ok?.should eq false
+              res.message!.should contain "SimpleRpc::CannotConnectError"
+            end
+
+            client.last_used_connection.try(&.connection_recreate_attempt).should eq 3
+          end
+        end
+      end
+    end
+  end
+
+  [SimpleRpc::Client::Mode::ConnectPerRequest, SimpleRpc::Client::Mode::Pool, SimpleRpc::Client::Mode::Single].each do |clmode|
+    [{ {host: HOST, port: PORT2, mode: clmode, unixsocket: nil}, SpecProto::Server.new(HOST, PORT2, logger: L) },
+     { {unixsocket: UNIXSOCK2, host: "", port: 1, mode: clmode}, SpecProto::Server.new(unixsocket: UNIXSOCK2, logger: L) },
+    ].each do |(client_opts, server)|
+      context "CLIENT(#{client_opts[:unixsocket] ? "UNIX" : "TCP"}:#{clmode})" do
+        it "connected after some reconnections" do
+          opts = client_opts.merge(create_connection_retries: 3, create_connection_retry_interval: 0.2)
+          with_run_server(server, 0.4) do |server|
+            client = SpecProto::Client.new(**opts)
+            should_spend(0.4, 0.05) do
+              res = client.bla("3.5", 9.6)
+              res.ok?.should eq true
+            end
+
+            client.last_used_connection.try(&.connection_recreate_attempt).should eq 2
+
+            should_spend(0.0, 0.05) do
+              res = client.bla("3.5", 9.6)
+              res.ok?.should eq true
+            end
+
+            client = SpecProto::Client.new(**opts)
+            should_spend(0.0, 0.05) do
+              res = client.bla("3.5", 9.6)
+              res.ok?.should eq true
+            end
           end
         end
       end
