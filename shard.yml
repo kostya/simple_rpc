@@ -4,12 +4,12 @@ version: 1.6.0
 authors:
   - Konstantin Makarchev <kostya27@gmail.com>
 
-crystal: ">= 1.0.0, < 2.0.0"
+crystal: "< 2.0.0"
 
 dependencies:
   msgpack:
     github: crystal-community/msgpack-crystal
-    version: ">= 1.0.0"
+    version: ">= 0.16.0"
   pool:
     github: ysbaddaden/pool
 
