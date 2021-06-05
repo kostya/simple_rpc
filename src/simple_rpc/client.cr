@@ -98,17 +98,7 @@ class SimpleRpc::Client
 
   def raw_request(method, args, msgid = SimpleRpc::DEFAULT_MSG_ID)
     with_connection do |connection|
-      # write request to server
-      if @mode.connect_per_request?
-        write_request(connection, method, args, msgid)
-      else
-        begin
-          write_request(connection, method, args, msgid)
-        rescue SimpleRpc::ConnectionError
-          # reconnecting here, if needed
-          write_request(connection, method, args, msgid)
-        end
-      end
+      try_write_request(connection, method, args, msgid)
 
       # read request from server
       res = connection.catch_connection_errors do
@@ -179,18 +169,24 @@ class SimpleRpc::Client
 
   private def raw_notify(method, args)
     with_connection do |connection|
-      # write request to server
-      if @mode.connect_per_request?
-        write_request(connection, method, args, SimpleRpc::DEFAULT_MSG_ID, true)
-      else
-        begin
-          write_request(connection, method, args, SimpleRpc::DEFAULT_MSG_ID, true)
-        rescue SimpleRpc::ConnectionError
-          # reconnecting here, if needed
-          write_request(connection, method, args, SimpleRpc::DEFAULT_MSG_ID, true)
-        end
-      end
+      try_write_request(connection, method, args, SimpleRpc::DEFAULT_MSG_ID, true)
       nil
+    end
+  end
+
+  # write header to server, but with one reconnection attempt,
+  # because connection can be outdated for not ConnectPerRequest modes
+  private def try_write_request(connection, method, args, msgid, notify = false)
+    # write request to server
+    if @mode.connect_per_request?
+      write_request(connection, method, args, msgid, notify)
+    else
+      begin
+        write_request(connection, method, args, msgid, notify)
+      rescue SimpleRpc::ConnectionError
+        # reconnecting here, if needed
+        write_request(connection, method, args, msgid, notify)
+      end
     end
   end
 
