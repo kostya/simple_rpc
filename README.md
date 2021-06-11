@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/kostya/simple_rpc.svg?branch=master)](http://travis-ci.org/kostya/simple_rpc)
 
-Remote Procedure Call Server and Client for Crystal. Implements msgpack-rpc protocall. Designed to be reliable and stable (catch every possible protocall/socket errors). It also quite fast: benchmark performs at 200Krps for single server process and single clients process.
+RPC Server and Client for Crystal. Implements msgpack-rpc protocall. Designed to be reliable and stable (catch every possible protocall/socket errors). It also quite fast: benchmark performs at 200Krps for single server process and single clients process.
 
 ## Installation
 
@@ -19,7 +19,7 @@ dependencies:
 
 #### Server example
 
-To create RPC server from your class/struct, just `include SimpleRpc::Proto`, it would expose all public methods to the external rpc calls and creates MyRpc::Server class. Each method should define type for each argument and also return type. Types of arguments should supports MessagePack::Serializable (by default it supported by most common language types, including Unions). Instance of MyRpc created for each rpc call, so you should not use instance variables for between-request interaction.
+To create RPC server from your class/struct, just `include SimpleRpc::Proto`, it adds `MyRpc::Server` class and also expose all public methods to the external rpc calls. Each method should define type for each argument and also return type. Types of arguments should supports `MessagePack::Serializable` (by default it supported by most common language types, including Unions). Instance of `MyRpc` created for each rpc call, so you should not use instance variables for between-request interaction.
 
 ```crystal
 require "simple_rpc"
@@ -27,11 +27,18 @@ require "simple_rpc"
 struct MyRpc
   include SimpleRpc::Proto
 
-  def my_method(x : Int32, y : String) : Float64
-    x * y.to_f
+  def sum(x1 : Int32, x2 : Float64) : Float64
+    x1 + x2
+  end
+
+  record Greeting, rand : Float64, msg : String { include MessagePack::Serializable }
+
+  def greeting(name : String) : Greeting
+    Greeting.new(rand, "Hello from Crystal #{name}")
   end
 end
 
+puts "Server listen on 9000 port"
 MyRpc::Server.new("127.0.0.1", 9000).run
 ```
 
@@ -40,8 +47,12 @@ MyRpc::Server.new("127.0.0.1", 9000).run
 require "simple_rpc"
 
 client = SimpleRpc::Client.new("127.0.0.1", 9000)
-result = client.request!(Float64, :my_method, 3, "5.5") # here can raise SimpleRpc::Errors
-p result # => 16.5
+
+result = client.request!(Float64, :sum, 3, 5.5) # here can raise SimpleRpc::Errors
+p result # => 8.5
+
+result = client.request!(MessagePack::Any, :greeting, "Vasya") # here can raise SimpleRpc::Errors
+p result.as_h # => {"rand" => 0.7839463879734746, "msg" => "Hello from Crystal Vasya"}
 ```
 
 #### MsgpackRPC is multilanguage RPC, so you can call it, for example, from Ruby
@@ -50,8 +61,8 @@ p result # => 16.5
 require 'msgpack/rpc'
 
 client = MessagePack::RPC::Client.new('127.0.0.1', 9000)
-result = client.call(:my_method, 3, "5.5")
-p result # => 16.5
+p client.call(:sum, 3, 5.5) # => 8.5
+p client.call(:greeting, "Vasya") # => {"rand"=>0.47593728045415334, "msg"=>"Hello from Crystal Vasya"}
 ```
 
 ## Client modes

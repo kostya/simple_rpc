@@ -11,3 +11,4 @@ bin_*
 /shard.lock
 TODO
 *.sock
+.ruby-version

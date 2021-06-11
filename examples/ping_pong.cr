@@ -2,8 +2,8 @@ require "../src/simple_rpc"
 
 # Example ping pong:
 #   run two processes:
-#      crystal examples/ping_pong.cr -- 9000
-#      crystal examples/ping_pong.cr -- 9001 9000
+#      crystal examples/ping_pong.cr 9000
+#      crystal examples/ping_pong.cr 9001 9000
 
 class MyRpc
   include SimpleRpc::Proto
