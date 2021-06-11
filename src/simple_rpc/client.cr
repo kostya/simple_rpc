@@ -76,7 +76,7 @@ class SimpleRpc::Client
   # First argument is a return type, then method and args
   #
   #   example:
-  #     res = SimpleRpc::Client.request(type, method, *args) # => SimpleRpc::Result(Float64)
+  #     res = SimpleRpc::Client.request(type, method, *args) # => SimpleRpc::Result(type)
   #     res = SimpleRpc::Client.request(Float64, :bla, 1, "2.5") # => SimpleRpc::Result(Float64)
   #
   #     if res.ok?

@@ -44,7 +44,7 @@ MyRpc::Server.new("127.0.0.1", 9000).run
 
 ## Client example
 
-Client simple method to use is: `.request!(return_type, method_name, *args)`. This call can raise [SimpleRpc::Errors](https://github.com/kostya/simple_rpc/blob/master/src/simple_rpc/error.cr). If you not care about return type use can use MessagePack::Any (in example below, you also can use `Greeting` record instead if you share that declaration). If you dont want to raise on errors you can use similar method `request` and process result manually.
+Client simple method to use is: `.request!(return_type, method_name, *args)`. This call can raise [SimpleRpc::Errors](https://github.com/kostya/simple_rpc/blob/master/src/simple_rpc/error.cr). If you not care about return type use can use `MessagePack::Any` (in example below, you also can use `Greeting` record instead if you share that declaration). If you dont want to raise on errors you can use similar method `request` and process result manually.
 
 ```crystal
 require "simple_rpc"
