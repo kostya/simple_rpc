@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/kostya/simple_rpc.svg?branch=master)](http://travis-ci.org/kostya/simple_rpc)
 
-RPC Server and Client for Crystal. Implements [msgpack-rpc](https://github.com/msgpack-rpc/msgpack-rpc/blob/master/spec.md) protocall. Designed to be reliable and stable (catch every possible protocall/socket errors). It also quite fast: benchmark performs at 200Krps for single server process and single clients process.
+RPC Server and Client for Crystal. Implements [msgpack-rpc](https://github.com/msgpack-rpc/msgpack-rpc/blob/master/spec.md) protocol. Designed to be reliable and stable (catch every possible protocol/socket errors). It also quite fast: benchmark performs at 200Krps for single server process and single clients process.
 
 ## Installation
 

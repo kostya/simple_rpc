@@ -46,7 +46,7 @@ class SimpleRpc::Server
     end
   rescue ex : IO::Error | Socket::Error | MessagePack::TypeCastError | MessagePack::UnexpectedByteError
     if l = @logger
-      l.error { "SimpleRpc: protocall ERROR #{ex.message}" }
+      l.error { "SimpleRpc: protocol ERROR #{ex.message}" }
     end
   rescue ex : MessagePack::EofError
   ensure
