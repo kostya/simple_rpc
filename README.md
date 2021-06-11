@@ -81,5 +81,5 @@ p client.call(:greeting, "Vasya") # => {"rand"=>0.47593728045415334, "msg"=>"Hel
 Example of client, which can handle 50 concurrent requests:
 
 ```crystal
-client = SimpleRpc::Client.new("127.0.0.1", 9000, mode: :pool, pool_size: 50, pool_timeout = 1.0)
+client = SimpleRpc::Client.new("127.0.0.1", 9000, mode: :pool, pool_size: 50, pool_timeout: 1.0)
 ```
