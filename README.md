@@ -71,7 +71,7 @@ p client.call(:greeting, "Vasya")
 
 ## Client modes
 
-`SimpleRpc::Client` can work in multiple modes, which is passed as argument `mode` to client:
+`SimpleRpc::Client` can work in multiple modes, you can choose it by argument `mode`:
     
   - `:connect_per_request`
     Create new connection for every request, after request done close connection. Quite slow (because spend time to create connection), but concurrency unlimited (only by OS). Good for slow requests. Used by default.
@@ -82,7 +82,7 @@ p client.call(:greeting, "Vasya")
   - `:single` 
     Single persistent connection. Same as pool of size 1, you should manage concurrency by yourself. Every request have one autoreconnection attempt (because persistent connection can be outdated).
 
-Example of client, which can handle 50 concurrent requests:
+Example of client, which can handle 50 concurrent requests, and can be used in multifiber environment:
 
 ```crystal
 client = SimpleRpc::Client.new("127.0.0.1", 9000, mode: :pool, pool_size: 50, pool_timeout: 1.0)
