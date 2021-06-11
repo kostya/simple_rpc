@@ -51,8 +51,10 @@ require "simple_rpc"
 
 client = SimpleRpc::Client.new("127.0.0.1", 9000)
 
-p client.request!(Float64, :sum, 3, 5.5)                # => 8.5
-p client.request!(MessagePack::Any, :greeting, "Vasya") # => {"rand" => 0.7839463879734746, "msg" => "Hello from Crystal Vasya"}
+p client.request!(Float64, :sum, 3, 5.5)
+# => 8.5
+p client.request!(MessagePack::Any, :greeting, "Vasya")
+# => {"rand" => 0.7839463879734746, "msg" => "Hello from Crystal Vasya"}
 ```
 
 #### MsgpackRPC is multi-language RPC, so you can call it, for example, from Ruby
@@ -61,8 +63,10 @@ p client.request!(MessagePack::Any, :greeting, "Vasya") # => {"rand" => 0.783946
 require 'msgpack/rpc'
 
 client = MessagePack::RPC::Client.new('127.0.0.1', 9000)
-p client.call(:sum, 3, 5.5) # => 8.5
-p client.call(:greeting, "Vasya") # => {"rand"=>0.47593728045415334, "msg"=>"Hello from Crystal Vasya"}
+p client.call(:sum, 3, 5.5)
+# => 8.5
+p client.call(:greeting, "Vasya")
+# => {"rand"=>0.47593728045415334, "msg"=>"Hello from Crystal Vasya"}
 ```
 
 ## Client modes
