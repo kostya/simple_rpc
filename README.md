@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/kostya/simple_rpc.svg?branch=master)](http://travis-ci.org/kostya/simple_rpc)
 
-Remote Procedure Call Server and Client for Crystal. Implements msgpack-rpc protocall. Designed to be reliable and stable (catch every possible protocall/socket errors). It also quite performant: benchmark shows ~ 200K rps in pool mode (single server core, single client core).
+Remote Procedure Call Server and Client for Crystal. Implements msgpack-rpc protocall. Designed to be reliable and stable (catch every possible protocall/socket errors). It also quite fast: benchmark performs at 200Krps for single server process and single clients process.
 
 ## Installation
 
@@ -16,99 +16,56 @@ dependencies:
 
 ## Usage
 
+
+#### Server example
+
+To create RPC server from your class/struct, just `include SimpleRpc::Proto`, it would expose all public methods to the external rpc calls and creates MyRpc::Server class. Each method should define type for each argument and also return type. Types of arguments should supports MessagePack::Serializable (by default it supported by most common language types, including Unions). Instance of MyRpc created for each rpc call, so you should not use instance variables for between-request interaction.
+
 ```crystal
 require "simple_rpc"
 
-# Example run server and client.
-
-class MyRpc
-  # When including SimpleRpc::Proto, all public instance methods inside class,
-  # would be exposed to external rpc call.
-  # Each method should define type for each argument, and also return type.
-  # (Types of arguments should supports MessagePack::Serializable).
-  # Instance of this class created on server for each call.
+struct MyRpc
   include SimpleRpc::Proto
 
-  def bla(x : Int32, y : String) : Float64
+  def my_method(x : Int32, y : String) : Float64
     x * y.to_f
   end
 end
 
-spawn do
-  # running RPC server on 9000 port in background fiber
-  MyRpc::Server.new("127.0.0.1", 9000).run
-end
+MyRpc::Server.new("127.0.0.1", 9000).run
+```
 
-# wait until server up
-sleep 0.1
+#### Client example
+```crystal
+require "simple_rpc"
 
-# create rpc client
-client = MyRpc::Client.new("127.0.0.1", 9000)
-result = client.bla!(3, "5.5") # here can raise SimpleRpc::Errors
+client = SimpleRpc::Client.new("127.0.0.1", 9000)
+result = client.request!(Float64, :my_method, 3, "5.5") # here can raise SimpleRpc::Errors
 p result # => 16.5
 ```
 
-#### When client code have no access to server proto, you can call raw requests:
-```crystal
-require "simple_rpc"
-
-client = SimpleRpc::Client.new("127.0.0.1", 9000)
-result = client.request!(Float64, :bla, 3, "5.5") # here can raise SimpleRpc::Errors
-p result # => 16.5
-```
-
-#### When you dont want to raises on problems, you can check result by yourself:
-```crystal
-require "simple_rpc"
-
-client = SimpleRpc::Client.new("127.0.0.1", 9000)
-result = client.request(Float64, :bla, 3, "5.5") # no raise on error
-if result.ok?
-  p result.value! # => 16.5
-else
-  p result.message!
-end
-```
-
-#### If you dont know what return type is, use MessagePack::Any:
-```crystal
-require "simple_rpc"
-
-client = SimpleRpc::Client.new("127.0.0.1", 9000)
-result = client.request!(MessagePack::Any, :bla, 3, "5.5")
-p result.as_f + 1 # => 17.5
-```
-
-#### If you want to exchange complex data types, you should include MessagePack::Serializable to your data
-```crystal
-require "simple_rpc"
-
-record MyResult, a : Int32, b : String { include MessagePack::Serializable }
-
-class MyRequest
-  include MessagePack::Serializable
-
-  property a : Int32
-  property b : Hash(String, String)?
-
-  @[MessagePack::Field(ignore: true)]
-  property c : Int32?
-end
-
-class MyRpc 
-  include SimpleRpc::Proto
-
-  def doit(req : MyRequest) : MyResult
-    # ...
-  end
-end
-```
-
-#### Example calling from Ruby, with gem msgpack-rpc
+#### MsgpackRPC is multilanguage RPC, so you can call it, for example, from Ruby
 ```ruby
+# gem install msgpack-rpc
 require 'msgpack/rpc'
 
 client = MessagePack::RPC::Client.new('127.0.0.1', 9000)
-result = client.call(:bla, 3, "5.5")
+result = client.call(:my_method, 3, "5.5")
 p result # => 16.5
+```
+
+## Client modes
+
+SimpleRpc::Client can work in multiple modes, which is passed as argument `mode` to client:
+
+    * :connect_per_request - Create new connection for every request, after request done close connection. Quite slow (because spend time to create connection), but concurrency unlimited (only by OS). Good for slow requests. Used by default.
+
+    * :pool - Create persistent pool of connections. Much faster, but concurrency limited by pool_size (default = 20). Good for millions of very fast requests. Every request have one autoreconnection attempt (because connection in pool can be outdated).
+
+    * :single - Single persistent connection. Same as pool of size 1, you should manage concurrency by yourself. Every request have one autoreconnection attempt (because persistent connection can be outdated).
+
+Example of client, which can handle 50 concurrent requests:
+
+```crystal
+client = SimpleRpc::Client.new("127.0.0.1", 9000, mode: pool, pool_size: 50, pool_timeout = 1.0)
 ```
