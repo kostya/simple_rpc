@@ -7,10 +7,11 @@ struct MyRpc
     x1 + x2
   end
 
-  record Greeting, rand : Float64, msg : String { include MessagePack::Serializable }
+  record Accepted, url : String, salt : Float64 { include MessagePack::Serializable }
+  record Rejected, error : String { include MessagePack::Serializable }
 
-  def greeting(name : String) : Greeting
-    Greeting.new(rand, "Hello from Crystal #{name}")
+  def authorize(name : String, password : Int32) : Accepted | Rejected
+    (name == "Vasya" && password == 1234) ? Accepted.new("http://...", rand) : Rejected.new("Not allowed")
   end
 end
 
