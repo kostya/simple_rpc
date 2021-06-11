@@ -68,9 +68,11 @@ p client.call(:greeting, "Vasya") # => {"rand"=>0.47593728045415334, "msg"=>"Hel
 ## Client modes
 
 `SimpleRpc::Client` can work in multiple modes, which is passed as argument `mode` to client:
-    :connect_per_request - Create new connection for every request, after request done close connection. Quite slow (because spend time to create connection), but concurrency unlimited (only by OS). Good for slow requests. Used by default.
-    :pool - Create persistent pool of connections. Much faster, but concurrency limited by pool_size (default = 20). Good for millions of very fast requests. Every request have one autoreconnection attempt (because connection in pool can be outdated).
-    :single - Single persistent connection. Same as pool of size 1, you should manage concurrency by yourself. Every request have one autoreconnection attempt (because persistent connection can be outdated).
+    - `:connect_per_request` - Create new connection for every request, after request done close connection. Quite slow (because spend time to create connection), but concurrency unlimited (only by OS). Good for slow requests. Used by default.
+    
+    - `:pool` - Create persistent pool of connections. Much faster, but concurrency limited by pool_size (default = 20). Good for millions of very fast requests. Every request have one autoreconnection attempt (because connection in pool can be outdated).
+
+    - `:single` - Single persistent connection. Same as pool of size 1, you should manage concurrency by yourself. Every request have one autoreconnection attempt (because persistent connection can be outdated).
 
 Example of client, which can handle 50 concurrent requests:
 
