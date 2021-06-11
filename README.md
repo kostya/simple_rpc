@@ -17,7 +17,7 @@ dependencies:
 ## Usage
 
 
-#### Server example
+## Server example
 
 To create RPC server from your class/struct, just `include SimpleRpc::Proto`, it adds `MyRpc::Server` class and also expose all public methods to the external rpc calls. Each method should define type for each argument and also return type. Types of arguments should supports `MessagePack::Serializable` (by default it supported by most common language types, including Unions). Instance of `MyRpc` created for each rpc call, so you should not use instance variables for between-request interaction.
 
@@ -42,7 +42,7 @@ puts "Server listen on 9000 port"
 MyRpc::Server.new("127.0.0.1", 9000).run
 ```
 
-#### Client example
+## Client example
 
 Client simple method to use is: `.request!(return_type, method_name, *args)`. This call can raise [SimpleRpc::Errors](https://github.com/kostya/simple_rpc/blob/master/src/simple_rpc/error.cr). If you not care about return type use can use MessagePack::Any (in example below, you also can use `Greeting` record instead if you share that declaration). If you dont want to raise on errors you can use similar method `request` and process result manually.
 
