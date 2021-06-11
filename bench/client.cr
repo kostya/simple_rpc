@@ -4,6 +4,9 @@ class Bench
   include SimpleRpc::Proto
 end
 
+# execute 1 mln requests per 10 concurrent fibers in pool mode
+# client 10 1000000 2
+
 CONCURRENCY = (ARGV[0]? || 10).to_i
 REQUESTS    = (ARGV[1]? || 1000).to_i
 mode = case (ARGV[2]? || "0")
@@ -49,5 +52,5 @@ CONCURRENCY.times do
 end
 
 CONCURRENCY.times { ch.receive }
-puts "result: #{s}, reqs_to_run: #{CONCURRENCY * (REQUESTS // CONCURRENCY)}, reqs_ok: #{c}, reqs_fails: #{e}"
-p Time.local - t
+delta = (Time.local - t).to_f
+puts "result: #{s}, reqs_to_run: #{CONCURRENCY * (REQUESTS // CONCURRENCY)}, reqs_ok: #{c}, reqs_fails: #{e}, in: #{delta}, rps: #{n / delta}"
