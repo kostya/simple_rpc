@@ -479,7 +479,7 @@ describe SimpleRpc do
             opts = client_opts.merge(create_connection_retries: 3, create_connection_retry_interval: 0.2)
 
             client = SpecProto::Client.new(**opts)
-            should_spend(0.6, 0.12) do
+            should_spend(0.6, 0.2) do
               res = client.bla("3.5", 9.6)
               res.ok?.should eq false
               res.message!.should contain "SimpleRpc::CannotConnectError"
