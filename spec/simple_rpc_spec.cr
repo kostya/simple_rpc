@@ -2,7 +2,7 @@ require "./spec_helper"
 require "http/client"
 
 {% if flag?(:darwin) %}
-  TIME_ERROR      = 0.11 # macos has quite big time error
+  TIME_ERROR      = 0.15 # macos has quite big time error
   ZERO_TIME_ERROR = 0.08
 {% else %}
   TIME_ERROR      = 0.05
@@ -461,7 +461,7 @@ describe SimpleRpc do
             dt = (Time.local - t).to_f
 
             dt.should be >= (0.1 * m)
-            dt.should be < (0.2 * m)
+            dt.should be < ((0.1 + TIME_ERROR) * m)
           end
         end
       end
