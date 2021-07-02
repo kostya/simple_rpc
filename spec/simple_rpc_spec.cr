@@ -129,7 +129,7 @@ describe SimpleRpc do
         end
 
         it "ok sleep" do
-          should_spend(0.1, 0.05) do
+          should_spend(0.1, 0.08) do
             res = client.sleepi(0.1, 1)
             res.ok?.should eq true
             res.value.should eq 1
@@ -466,7 +466,7 @@ describe SimpleRpc do
         context "create connection" do
           it "raise when no connection, immediately" do
             client = SpecProto::Client.new(**client_opts)
-            should_spend(0.0, 0.05) do
+            should_spend(0.0, 0.08) do
               res = client.bla("3.5", 9.6)
               res.ok?.should eq false
               res.message!.should contain "SimpleRpc::CannotConnectError"
@@ -479,7 +479,7 @@ describe SimpleRpc do
             opts = client_opts.merge(create_connection_retries: 3, create_connection_retry_interval: 0.2)
 
             client = SpecProto::Client.new(**opts)
-            should_spend(0.6, 0.11) do
+            should_spend(0.6, 0.12) do
               res = client.bla("3.5", 9.6)
               res.ok?.should eq false
               res.message!.should contain "SimpleRpc::CannotConnectError"
