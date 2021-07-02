@@ -11,4 +11,4 @@ jobs:
       - name: Install Crystal
         uses: crystal-lang/install-crystal@v1
       - name: Run tests
-        run: crystal spec
+        run: shards install && crystal spec
