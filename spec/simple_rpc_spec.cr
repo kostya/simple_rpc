@@ -139,7 +139,7 @@ describe SimpleRpc do
         it "sleep timeout" do
           client_t = SpecProto::Client.new(HOST, PORT, mode: clmode, command_timeout: 0.2)
 
-          should_spend(0.2, 0.07) do
+          should_spend(0.2, 0.08) do
             res = client_t.sleepi(0.5, 2)
             res.message!.should eq "SimpleRpc::CommandTimeoutError: Command timed out"
             res.value.should eq nil

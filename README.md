@@ -1,6 +1,6 @@
 # simple_rpc
 
-[![Build Status](https://github.com/kostya/simple_rpc/actions/workflows/Specs/badge.svg)](https://github.com/kostya/simple_rpc/actions/workflows/ci.yml?query=branch%3Amaster+event%3Apush)
+[![Build Status](https://github.com/kostya/simple_rpc/actions/workflows/ci.yml/badge.svg)](https://github.com/kostya/simple_rpc/actions/workflows/ci.yml?query=branch%3Amaster+event%3Apush)
 
 RPC Server and Client for Crystal. Implements [msgpack-rpc](https://github.com/msgpack-rpc/msgpack-rpc/blob/master/spec.md) protocol. Designed to be reliable and stable (catch every possible protocol/socket errors). It also quite fast: benchmark performs at 200Krps for single server process and single clients process.
 
