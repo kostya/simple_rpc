@@ -139,7 +139,7 @@ describe SimpleRpc do
         it "sleep timeout" do
           client_t = SpecProto::Client.new(HOST, PORT, mode: clmode, command_timeout: 0.2)
 
-          should_spend(0.2, 0.05) do
+          should_spend(0.2, 0.07) do
             res = client_t.sleepi(0.5, 2)
             res.message!.should eq "SimpleRpc::CommandTimeoutError: Command timed out"
             res.value.should eq nil
@@ -479,7 +479,7 @@ describe SimpleRpc do
             opts = client_opts.merge(create_connection_retries: 3, create_connection_retry_interval: 0.2)
 
             client = SpecProto::Client.new(**opts)
-            should_spend(0.6, 0.05) do
+            should_spend(0.6, 0.11) do
               res = client.bla("3.5", 9.6)
               res.ok?.should eq false
               res.message!.should contain "SimpleRpc::CannotConnectError"
@@ -501,20 +501,20 @@ describe SimpleRpc do
           opts = client_opts.merge(create_connection_retries: 3, create_connection_retry_interval: 0.2)
           with_run_server(server, 0.4) do |server|
             client = SpecProto::Client.new(**opts)
-            should_spend(0.4, 0.05) do
+            should_spend(0.4, 0.08) do
               res = client.bla("3.5", 9.6)
               res.ok?.should eq true
             end
 
             client.last_used_connection.try(&.connection_recreate_attempt).should eq 2
 
-            should_spend(0.0, 0.05) do
+            should_spend(0.0, 0.08) do
               res = client.bla("3.5", 9.6)
               res.ok?.should eq true
             end
 
             client = SpecProto::Client.new(**opts)
-            should_spend(0.0, 0.05) do
+            should_spend(0.0, 0.08) do
               res = client.bla("3.5", 9.6)
               res.ok?.should eq true
             end
