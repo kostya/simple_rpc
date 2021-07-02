@@ -461,7 +461,7 @@ describe SimpleRpc do
             dt = (Time.local - t).to_f
 
             dt.should be >= (0.1 * m)
-            dt.should be < ((0.1 + TIME_ERROR) * m)
+            dt.should be < ((0.1 + TIME_ERROR + 0.03) * m)
           end
         end
       end
