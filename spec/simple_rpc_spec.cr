@@ -2,10 +2,12 @@ require "./spec_helper"
 require "http/client"
 
 {% if flag?(:darwin) %}
-  TIME_ERROR      = 0.15 # macos has quite big time error
+  TIME_ERROR      = 0.155 # macos has quite big time error
+  BIG_TIME_ERROR  = TIME_ERROR * 2
   ZERO_TIME_ERROR = 0.08
 {% else %}
   TIME_ERROR      = 0.05
+  BIG_TIME_ERROR  = TIME_ERROR * 2
   ZERO_TIME_ERROR = 0.03
 {% end %}
 
@@ -487,7 +489,7 @@ describe SimpleRpc do
             opts = client_opts.merge(create_connection_retries: 3, create_connection_retry_interval: 0.2)
 
             client = SpecProto::Client.new(**opts)
-            should_spend(0.6, 0.16 + TIME_ERROR) do
+            should_spend(0.6, BIG_TIME_ERROR) do
               res = client.bla("3.5", 9.6)
               res.ok?.should eq false
               res.message!.should contain "SimpleRpc::CannotConnectError"
@@ -509,7 +511,7 @@ describe SimpleRpc do
           opts = client_opts.merge(create_connection_retries: 3, create_connection_retry_interval: 0.2)
           with_run_server(server, 0.4) do |server|
             client = SpecProto::Client.new(**opts)
-            should_spend(0.4, TIME_ERROR) do
+            should_spend(0.4, BIG_TIME_ERROR) do
               res = client.bla("3.5", 9.6)
               res.ok?.should eq true
             end
