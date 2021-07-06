@@ -1,11 +1,13 @@
 require "socket"
 require "msgpack"
+require "openssl"
 require "log"
 
 class SimpleRpc::Server
   @server : TCPServer | UNIXServer | Nil
 
-  def initialize(@host : String = "127.0.0.1", @port : Int32 = 9999, @unixsocket : String? = nil, @logger : Log? = nil, @close_connection_after_request = false)
+  def initialize(@host : String = "127.0.0.1", @port : Int32 = 9999, @unixsocket : String? = nil, @ssl_context : OpenSSL::SSL::Context::Server? = nil,
+                 @logger : Log? = nil, @close_connection_after_request = false)
   end
 
   private def read_context(io) : Context
@@ -39,12 +41,16 @@ class SimpleRpc::Server
     io.read_buffering = true if io.responds_to?(:read_buffering)
     io.sync = false if io.responds_to?(:sync=)
 
+    if ssl_context = @ssl_context
+      io = OpenSSL::SSL::Socket::Server.new(io, ssl_context)
+    end
+
     loop do
       ctx = read_context(io)
       handle_request(ctx) || ctx.write_error("method '#{ctx.method}' not found")
       break if @close_connection_after_request
     end
-  rescue ex : IO::Error | Socket::Error | MessagePack::TypeCastError | MessagePack::UnexpectedByteError
+  rescue ex : IO::Error | Socket::Error | MessagePack::TypeCastError | MessagePack::UnexpectedByteError | OpenSSL::Error
     if l = @logger
       l.error { "SimpleRpc: protocol ERROR #{ex.message}" }
     end

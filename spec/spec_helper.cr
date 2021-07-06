@@ -7,6 +7,7 @@ L.backend = Log::IOBackend.new(File.open("spec.log", "a"))
 HOST         = "127.0.0.1"
 PORT         = 8888
 PORT2        = 8889
+PORT_SSL     = 8890
 PORT_BAD     = 9999
 TCPPORT      = 7777
 UNIXSOCK     = "./tmp_spec_simple_rpc.sock"
@@ -130,6 +131,14 @@ spawn do
 end
 
 spawn do
+  server_context = OpenSSL::SSL::Context::Server.new
+  server_context.certificate_chain = File.join(__DIR__, ".fixtures", "openssl.crt")
+  server_context.private_key = File.join(__DIR__, ".fixtures", "openssl.key")
+
+  SpecProto::Server.new(HOST, PORT_SSL, logger: L, ssl_context: server_context).run
+end
+
+spawn do
   File.delete(UNIXSOCK) rescue nil
   SpecProto::Server.new(unixsocket: UNIXSOCK, logger: L).run
 end
@@ -174,6 +183,12 @@ def with_run_server(server, start_after = 0)
 ensure
   server.close
   sleep 0.1
+end
+
+CLIENT_SSL_CTX = begin
+  ctx = OpenSSL::SSL::Context::Client.new
+  ctx.verify_mode = OpenSSL::SSL::VerifyMode::NONE
+  ctx
 end
 
 sleep 0.1

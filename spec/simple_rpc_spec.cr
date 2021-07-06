@@ -13,7 +13,7 @@ require "http/client"
 
 describe SimpleRpc do
   [SimpleRpc::Client::Mode::ConnectPerRequest, SimpleRpc::Client::Mode::Pool, SimpleRpc::Client::Mode::Single].each do |clmode|
-    [SpecProto::Client.new(HOST, PORT, mode: clmode), SpecProto::Client.new(unixsocket: UNIXSOCK, mode: clmode)].each do |client|
+    [SpecProto::Client.new(HOST, PORT, mode: clmode), SpecProto::Client.new(unixsocket: UNIXSOCK, mode: clmode), SpecProto::Client.new(HOST, PORT_SSL, mode: clmode, ssl_context: CLIENT_SSL_CTX)].each do |client|
       context "CLIENT(#{client.unixsocket ? "UNIX" : "TCP"}:#{clmode})" do
         it "ok" do
           res = client.bla("3.5", 9.6)
@@ -498,6 +498,32 @@ describe SimpleRpc do
             client.last_used_connection.try(&.connection_recreate_attempt).should eq 3
           end
         end
+      end
+    end
+  end
+
+  [SimpleRpc::Client::Mode::ConnectPerRequest, SimpleRpc::Client::Mode::Pool, SimpleRpc::Client::Mode::Single].each do |clmode|
+    context "mode:#{clmode}" do
+      it "MIX SSL and no" do
+        cl_ok = SimpleRpc::Client.new(HOST, PORT, mode: clmode)
+        cl_err = SimpleRpc::Client.new(HOST, PORT_SSL, mode: clmode)
+
+        cl_ssl_ok = SimpleRpc::Client.new(HOST, PORT_SSL, ssl_context: CLIENT_SSL_CTX, mode: clmode)
+        cl_ssl_err = SimpleRpc::Client.new(HOST, PORT, ssl_context: CLIENT_SSL_CTX, mode: clmode)
+
+        cl_ok.request!(Float64, :bla, "2.0", 1.5).should eq 3.0
+        cl_ssl_ok.request!(Float64, :bla, "2.0", 1.5).should eq 3.0
+
+        expect_raises(SimpleRpc::ConnectionLostError, "IO::Error: Error reading socket") do
+          cl_err.request!(Float64, :bla, "2.0", 1.5)
+        end
+
+        expect_raises(SimpleRpc::CannotConnectError, "OpenSSL::SSL::Error: SSL_connect") do
+          cl_ssl_err.request!(Float64, :bla, "2.0", 1.5)
+        end
+
+        cl_ok.request!(Float64, :bla, "2.0", 1.5).should eq 3.0
+        cl_ssl_ok.request!(Float64, :bla, "2.0", 1.5).should eq 3.0
       end
     end
   end

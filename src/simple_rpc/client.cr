@@ -1,5 +1,6 @@
 require "socket"
 require "msgpack"
+require "openssl"
 require "pool/connection"
 
 class SimpleRpc::Client
@@ -26,11 +27,12 @@ class SimpleRpc::Client
   getter single : Connection?
   getter mode
 
-  getter host, port, unixsocket, command_timeout, connect_timeout
+  getter host, port, unixsocket, command_timeout, connect_timeout, ssl_context
 
   def initialize(@host : String = "127.0.0.1",
                  @port : Int32 = 9999,
                  @unixsocket : String? = nil,
+                 @ssl_context : OpenSSL::SSL::Context::Client? = nil,
                  @command_timeout : Float64? = nil,
                  @connect_timeout : Float64? = nil,
                  @mode : Mode = Mode::ConnectPerRequest,
@@ -132,7 +134,7 @@ class SimpleRpc::Client
   end
 
   private def create_connection : Connection
-    Connection.new(@host, @port, @unixsocket, @command_timeout, @connect_timeout, @create_connection_retries, @create_connection_retry_interval)
+    Connection.new(@host, @port, @unixsocket, @ssl_context, @command_timeout, @connect_timeout, @create_connection_retries, @create_connection_retry_interval)
   end
 
   private def pool! : ConnectionPool(Connection)
@@ -255,12 +257,13 @@ class SimpleRpc::Client
   end
 
   private class Connection
-    getter socket : TCPSocket | UNIXSocket | Nil
+    getter socket : TCPSocket | UNIXSocket | OpenSSL::SSL::Socket::Client | Nil
     getter connection_recreate_attempt
 
     def initialize(@host : String = "127.0.0.1",
                    @port : Int32 = 9999,
                    @unixsocket : String? = nil,
+                   @ssl_context : OpenSSL::SSL::Context::Client? = nil,
                    @command_timeout : Float64? = nil,
                    @connect_timeout : Float64? = nil,
                    @create_connection_retries = 0,
@@ -272,7 +275,7 @@ class SimpleRpc::Client
       @socket ||= retried_connect
     end
 
-    private def retried_connect : TCPSocket | UNIXSocket
+    private def retried_connect : TCPSocket | UNIXSocket | OpenSSL::SSL::Socket::Client
       @connection_recreate_attempt = 0
       while true
         begin
@@ -288,7 +291,7 @@ class SimpleRpc::Client
       end
     end
 
-    private def connect : TCPSocket | UNIXSocket
+    private def connect : TCPSocket | UNIXSocket | OpenSSL::SSL::Socket::Client
       _socket = if us = @unixsocket
                   UNIXSocket.new(us)
                 else
@@ -301,8 +304,13 @@ class SimpleRpc::Client
       end
       _socket.read_buffering = true
       _socket.sync = false
+
+      if (ssl_context = @ssl_context) && _socket.is_a?(TCPSocket)
+        _socket = OpenSSL::SSL::Socket::Client.new(_socket, ssl_context)
+      end
+
       _socket
-    rescue ex : IO::TimeoutError | Socket::Error | IO::Error
+    rescue ex : IO::TimeoutError | Socket::Error | IO::Error | OpenSSL::Error
       raise SimpleRpc::CannotConnectError.new("#{ex.class}: #{ex.message}")
     end
 
@@ -311,7 +319,7 @@ class SimpleRpc::Client
     rescue ex : IO::TimeoutError
       close
       raise SimpleRpc::CommandTimeoutError.new("Command timed out")
-    rescue ex : Socket::Error | IO::Error | MessagePack::EofError # Errno
+    rescue ex : Socket::Error | IO::Error | MessagePack::EofError | OpenSSL::Error
       close
       raise SimpleRpc::ConnectionLostError.new("#{ex.class}: #{ex.message}")
     end
