@@ -82,7 +82,7 @@ describe SimpleRpc do
         end
 
         it "ok with big input args" do
-          strings = (0..5).map { |i| (0..60000 + i).map(&.chr).join }
+          strings = (0..5).map { |i| (0..60000 + i).map(&.unsafe_chr).join }
           res = client.bin_input_args(strings, 2.5)
           res.ok?.should eq true
           res.value!.should eq "488953775.0"
@@ -97,19 +97,19 @@ describe SimpleRpc do
 
         it "exception" do
           res = client.bla("O_o", 9.6)
-          res.message!.should eq "SimpleRpc::RuntimeError: Exception in task execution: Invalid Float64: O_o"
+          res.message!.should contain "SimpleRpc::RuntimeError: Exception in task execution: Invalid Float64: "
           res.value.should eq nil
         end
 
         it "exception without wrapper" do
-          expect_raises(SimpleRpc::RuntimeError, "Exception in task execution: Invalid Float64: O_o") do
+          expect_raises(SimpleRpc::RuntimeError, "Exception in task execution: Invalid Float64: ") do
             client.bla!("O_o", 9.6)
           end
         end
 
         it "next request after exception should be ok (was a bug)" do
           res = client.bla("O_o", 9.6)
-          res.message!.should eq "SimpleRpc::RuntimeError: Exception in task execution: Invalid Float64: O_o"
+          res.message!.should contain "SimpleRpc::RuntimeError: Exception in task execution: Invalid Float64: "
           res.value.should eq nil
 
           res = client.bla("3.5", 9.6)
