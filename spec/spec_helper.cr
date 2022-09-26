@@ -55,6 +55,12 @@ class SpecProto
     SimpleRpc::Context::IOMsgpack.new(io)
   end
 
+  def raw_socket_result : SimpleRpc::Context::RawSocketResponse
+    self.simple_rpc_context.write_default_response
+    {1, "bla", 7.5}.to_msgpack(self.simple_rpc_context.io)
+    SimpleRpc::Context::RawSocketResponse.new
+  end
+
   def bin_input_args(x : Array(String), y : Float64) : String
     w = 0_u64
 

@@ -4,9 +4,18 @@ record SimpleRpc::Context, msgid : UInt32, method : String, args_count : UInt32,
   unpacker : MessagePack::IOUnpacker, io : IO, notify : Bool, logger : Log? = nil, created_at : Time = Time.local do
   record RawMsgpack, data : Bytes
   record IOMsgpack, io : IO
+  record RawSocketResponse
 
   def skip_values(n)
     n.times { unpacker.skip_value }
+  end
+
+  def write_default_response
+    packer = MessagePack::Packer.new(io)
+    packer.write_array_start(SimpleRpc::RESPONSE_SIZE)
+    packer.write(SimpleRpc::RESPONSE)
+    packer.write(msgid)
+    packer.write(nil)
   end
 
   def write_result(res)
@@ -14,21 +23,17 @@ record SimpleRpc::Context, msgid : UInt32, method : String, args_count : UInt32,
 
     case res
     when RawMsgpack
-      packer = MessagePack::Packer.new(io)
-      packer.write_array_start(SimpleRpc::RESPONSE_SIZE)
-      packer.write(SimpleRpc::RESPONSE)
-      packer.write(msgid)
-      packer.write(nil)
+      write_default_response
       io.write(res.data)
     when IOMsgpack
-      packer = MessagePack::Packer.new(io)
-      packer.write_array_start(SimpleRpc::RESPONSE_SIZE)
-      packer.write(SimpleRpc::RESPONSE)
-      packer.write(msgid)
-      packer.write(nil)
+      write_default_response
       IO.copy(res.io, io)
+    when RawSocketResponse
+      # do nothing
+      # just flush
     else
-      {SimpleRpc::RESPONSE, msgid, nil, res}.to_msgpack(io)
+      write_default_response
+      res.to_msgpack(io)
     end
 
     io.flush

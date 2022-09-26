@@ -168,6 +168,12 @@ describe SimpleRpc do
           res.value.should eq({1, "bla", 6.5})
         end
 
+        it "ok raw socket result" do
+          res = client.request(Tuple(Int32, String, Float64), :raw_socket_result)
+          res.ok?.should eq true
+          res.value.should eq({1, "bla", 7.5})
+        end
+
         context "invariants" do
           it "int" do
             res = client.request(MessagePack::Type, :invariants, 0)
