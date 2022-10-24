@@ -1,14 +1,10 @@
 require "log"
 
-record SimpleRpc::Context, msgid : UInt32, method : String, args_count : UInt32,
-  unpacker : MessagePack::IOUnpacker, io : IO, notify : Bool, logger : Log? = nil, created_at : Time = Time.local do
+record SimpleRpc::Context, msgid : UInt32, method : String,
+  node : MessagePack::Node, io : IO, notify : Bool, logger : Log? = nil, created_at : Time = Time.local do
   record RawMsgpack, data : Bytes
   record IOMsgpack, io : IO
   record RawSocketResponse
-
-  def skip_values(n)
-    n.times { unpacker.skip_value }
-  end
 
   def write_default_response
     packer = MessagePack::Packer.new(io)
@@ -39,7 +35,7 @@ record SimpleRpc::Context, msgid : UInt32, method : String, args_count : UInt32,
     io.flush
 
     if l = @logger
-      l.info { "SimpleRpc: #{method}(#{args_count}) (in #{Time.local - created_at})" }
+      l.info { "SimpleRpc: #{method} (in #{Time.local - created_at})" }
     end
 
     true
@@ -52,7 +48,7 @@ record SimpleRpc::Context, msgid : UInt32, method : String, args_count : UInt32,
     io.flush
 
     if l = @logger
-      l.error { "SimpleRpc: #{method}(#{args_count}): #{msg} (in #{Time.local - created_at})" }
+      l.error { "SimpleRpc: #{method}: #{msg} (in #{Time.local - created_at})" }
     end
 
     true

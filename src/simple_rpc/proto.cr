@@ -22,24 +22,23 @@ module SimpleRpc::Proto
         \{% for m in @type.methods %}
           \{% if m.visibility.stringify == ":public" %}
             when "\{{m.name}}"
+              \%unpacker = MessagePack::NodeUnpacker.new(ctx.node)
+              ctx_args_count = \%unpacker.read_array_size
+              \%unpacker.finish_token!
+
               args_need_count = \{{ m.args.size.id }}
-              if ctx.args_count != args_need_count
-                ctx.skip_values(ctx.args_count)
-                return ctx.write_error(\\%Q[bad arguments, expected \{{m.args.id}}, but got #{ctx.args_count} args])
+              if ctx_args_count != args_need_count
+                return ctx.write_error(\\%Q[bad arguments, expected \{{m.args.id}}, but got #{ctx_args_count} args])
               end
 
               \{% if m.args.size > 0 %}
                 \{% for arg in m.args %}
-                  \%unpacker_\{{arg.id} = MessagePack::NodeUnpacker.new(ctx.unpacker.read_node)
-                \{% end %}
-
-                \{% for arg in m.args %}
                   \{% if arg.restriction %}
                     \%_var_\{{arg.id} =
                       begin
-                        Union(\{{ arg.restriction }}).new(\%unpacker_\{{arg.id})
+                        Union(\{{ arg.restriction }}).new(\%unpacker)
                       rescue MessagePack::TypeCastError
-                        token = \%unpacker_\{{arg.id}.@node.tokens.first
+                        token = \%unpacker.@token
                         return ctx.write_error(\\%Q[bad arguments, expected \{{m.args.id}}, but got \{{arg.name}}: #{MessagePack::Token.to_s(token)}])
                       end
                   \{% else %}
