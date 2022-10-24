@@ -8,4 +8,6 @@ class Bench
   end
 end
 
-Bench::Server.new("127.0.0.1", 9003).run
+port = (ARGV[0]? || 9003).to_i
+p "Listen on #{port}"
+Bench::Server.new("127.0.0.1", port).run

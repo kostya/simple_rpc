@@ -1,8 +1,7 @@
 require "../src/simple_rpc"
 
-client = SimpleRpc::Client.new("127.0.0.1", 9000)
+port = (ARGV[0]? || 9000).to_i
+client = SimpleRpc::Client.new("127.0.0.1", port)
 
 p client.request!(Float64, :sum, 3, 5.5)
 # => 8.5
-p client.request!(MessagePack::Any, :greeting, "Vasya")
-# => {"rand" => 0.7839463879734746, "msg" => "Hello from Crystal Vasya"}

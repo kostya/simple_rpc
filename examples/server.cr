@@ -4,6 +4,7 @@ struct MyRpc
   include SimpleRpc::Proto
 
   def sum(x1 : Int32, x2 : Float64) : Float64
+    puts "Got sum request #{x1}, #{x2}"
     x1 + x2
   end
 
@@ -14,5 +15,6 @@ struct MyRpc
   end
 end
 
-puts "Server listen on 9000 port"
-MyRpc::Server.new("127.0.0.1", 9000).run
+port = (ARGV[0]? || 9000).to_i
+puts "Server listen on #{port} port"
+MyRpc::Server.new("127.0.0.1", port).run
