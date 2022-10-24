@@ -1,3 +1,8 @@
+## 1.7.0
+* Fixed connection hanging after method not found request
+* Add ServerProxy, for proxing on request level
+* Some refactors
+
 ## 1.6.3
 * Add raw socket response
 
