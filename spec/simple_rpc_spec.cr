@@ -131,6 +131,17 @@ describe SimpleRpc do
           res.value.should eq nil
         end
 
+        it "unknown method and next ok request" do
+          client2 = SimpleRpc::Client.new(HOST, PORT, mode: clmode)
+          res = client2.request(Nil, :zip, 1, 2, 3)
+          res.message!.should eq "SimpleRpc::RuntimeError: method 'zip' not found"
+          res.value.should eq nil
+
+          res = client2.request(Int32, :no_args)
+          res.ok?.should eq true
+          res.value.should eq 0
+        end
+
         it "bad params" do
           client2 = SpecProto2::Client.new(HOST, PORT, mode: clmode)
           res = client2.bla(1.3, "2.5")
