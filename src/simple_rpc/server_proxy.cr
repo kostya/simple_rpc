@@ -3,7 +3,7 @@
 # it change server for every request (by round robin method)
 # and doesn't matter what client connection is, persistent or not.
 # It also marks dead servers, and reshedule request to another server.
-# Perfomance when proxing to 3 servers down from 154 Krps to 69 Krps (some place for optimizations)
+# Perfomance when proxing to 3 servers down from 154 Krps to 71 Krps
 #
 # proxy = SimpleRpc::ServerProxy.new("127.0.0.1", 9000)
 # proxy.ports = [9001, 9002, 9003]
@@ -56,16 +56,12 @@ class SimpleRpc::ServerProxy < SimpleRpc::Server
           # reconnecting here, if needed
           req(client, ctx, connection)
         end
+
+        return true
       rescue SimpleRpc::ConnectionError
         result = :dead_connection
       rescue SimpleRpc::CommandTimeoutError
         result = :timeout
-      end
-
-      if result == :ok
-        v.to_msgpack(ctx.io) unless ctx.notify
-        ctx.io.flush
-        return true
       end
     end
 
@@ -86,22 +82,14 @@ class SimpleRpc::ServerProxy < SimpleRpc::Server
   def req(client, ctx, connection)
     connection.catch_connection_errors do
       client.write_header(connection, ctx.method, ctx.msgid, ctx.notify) do |packer|
-        # TODO: this is probably slow, write Node directly?
-
-        unpacker = MessagePack::NodeUnpacker.new(ctx.node)
-        array_size = unpacker.read_array_size
-        unpacker.finish_token!
-
-        packer.write_array_start(array_size)
-
-        array_size.times do
-          value = unpacker.read
-          packer.write(value)
-        end
+        MessagePack::Copy.new(ctx.io_with_args.rewind, connection.socket).copy_object # copy array of arguments
       end
 
-      # TODO: this is probably slow, read Node?
-      MessagePack::IOUnpacker.new(connection.socket).read
+      unless ctx.notify
+        MessagePack::Copy.new(connection.socket, ctx.io).copy_object # copy body
+      end
+
+      ctx.io.flush
     end
   end
 end

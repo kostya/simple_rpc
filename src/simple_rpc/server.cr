@@ -35,9 +35,11 @@ class SimpleRpc::Server
     msgid = request ? UInt32.new(unpacker) : SimpleRpc::DEFAULT_MSG_ID
     method = String.new(unpacker)
 
-    node = unpacker.read_node
+    io_with_args = IO::Memory.new
+    MessagePack::Copy.new(io, io_with_args).copy_object
+    io_with_args.rewind
 
-    Context.new(msgid, method, node, io, !request, @logger)
+    Context.new(msgid, method, io_with_args, io, !request, @logger)
   end
 
   def handle(io)

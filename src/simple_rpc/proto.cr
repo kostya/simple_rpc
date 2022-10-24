@@ -18,14 +18,14 @@ module SimpleRpc::Proto
     macro finished
       def self.handle_request(ctx : SimpleRpc::Context)
         \{% begin %}
+        unpacker = MessagePack::IOUnpacker.new(ctx.io_with_args.rewind)
+        ctx_args_count = unpacker.read_array_size
+        unpacker.finish_token!
+
         case ctx.method
         \{% for m in @type.methods %}
           \{% if m.visibility.stringify == ":public" %}
             when "\{{m.name}}"
-              \%unpacker = MessagePack::NodeUnpacker.new(ctx.node)
-              ctx_args_count = \%unpacker.read_array_size
-              \%unpacker.finish_token!
-
               args_need_count = \{{ m.args.size.id }}
               if ctx_args_count != args_need_count
                 return ctx.write_error(\\%Q[bad arguments, expected \{{m.args.id}}, but got #{ctx_args_count} args])
@@ -36,9 +36,9 @@ module SimpleRpc::Proto
                   \{% if arg.restriction %}
                     \%_var_\{{arg.id} =
                       begin
-                        Union(\{{ arg.restriction }}).new(\%unpacker)
+                        Union(\{{ arg.restriction }}).new(unpacker)
                       rescue MessagePack::TypeCastError
-                        token = \%unpacker.@token
+                        token = unpacker.@lexer.@token
                         return ctx.write_error(\\%Q[bad arguments, expected \{{m.args.id}}, but got \{{arg.name}}: #{MessagePack::Token.to_s(token)}])
                       end
                   \{% else %}

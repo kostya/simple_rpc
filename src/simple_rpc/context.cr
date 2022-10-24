@@ -1,7 +1,7 @@
 require "log"
 
 record SimpleRpc::Context, msgid : UInt32, method : String,
-  node : MessagePack::Node, io : IO, notify : Bool, logger : Log? = nil, created_at : Time = Time.local do
+  io_with_args : IO::Memory, io : IO, notify : Bool, logger : Log? = nil, created_at : Time = Time.local do
   record RawMsgpack, data : Bytes
   record IOMsgpack, io : IO
   record RawSocketResponse
