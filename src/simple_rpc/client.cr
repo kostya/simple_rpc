@@ -123,7 +123,7 @@ class SimpleRpc::Client
     end
   end
 
-  private def with_connection
+  protected def with_connection
     connection = get_connection
     connection.socket # establish connection if needed
     yield(connection)
@@ -133,15 +133,15 @@ class SimpleRpc::Client
     end
   end
 
-  private def create_connection : Connection
+  protected def create_connection : Connection
     Connection.new(@host, @port, @unixsocket, @ssl_context, @command_timeout, @connect_timeout, @create_connection_retries, @create_connection_retry_interval)
   end
 
-  private def pool! : ConnectionPool(Connection)
+  protected def pool! : ConnectionPool(Connection)
     @pool.not_nil!
   end
 
-  private def get_connection : Connection
+  protected def get_connection : Connection
     case @mode
     when Mode::Pool
       _pool = pool!
@@ -158,7 +158,7 @@ class SimpleRpc::Client
     end
   end
 
-  private def release_connection(conn)
+  protected def release_connection(conn)
     case @mode
     when Mode::ConnectPerRequest
       conn.close
@@ -169,7 +169,7 @@ class SimpleRpc::Client
     end
   end
 
-  private def raw_notify(method, args)
+  protected def raw_notify(method, args)
     with_connection do |connection|
       try_write_request(connection, method, args, SimpleRpc::DEFAULT_MSG_ID, true)
       nil
@@ -178,7 +178,7 @@ class SimpleRpc::Client
 
   # write header to server, but with one reconnection attempt,
   # because connection can be outdated for not ConnectPerRequest modes
-  private def try_write_request(connection, method, args, msgid, notify = false)
+  protected def try_write_request(connection, method, args, msgid, notify = false)
     # write request to server
     if @mode.connect_per_request?
       write_request(connection, method, args, msgid, notify)
@@ -192,7 +192,7 @@ class SimpleRpc::Client
     end
   end
 
-  private def write_request(conn, method, args, msgid, notify = false)
+  protected def write_request(conn, method, args, msgid, notify = false)
     conn.catch_connection_errors do
       write_header(conn, method, msgid, notify) do |packer|
         args.to_msgpack(packer)
@@ -200,7 +200,7 @@ class SimpleRpc::Client
     end
   end
 
-  private def write_header(conn, method, msgid = SimpleRpc::DEFAULT_MSG_ID, notify = false)
+  protected def write_header(conn, method, msgid = SimpleRpc::DEFAULT_MSG_ID, notify = false)
     sock = conn.socket
     packer = MessagePack::Packer.new(sock)
     if notify
@@ -219,7 +219,7 @@ class SimpleRpc::Client
     true
   end
 
-  private def read_msg_id(unpacker) : UInt32
+  protected def read_msg_id(unpacker) : UInt32
     size = unpacker.read_array_size
     unpacker.finish_token!
 
@@ -275,7 +275,7 @@ class SimpleRpc::Client
       @socket ||= retried_connect
     end
 
-    private def retried_connect : TCPSocket | UNIXSocket | OpenSSL::SSL::Socket::Client
+    protected def retried_connect : TCPSocket | UNIXSocket | OpenSSL::SSL::Socket::Client
       @connection_recreate_attempt = 0
       while true
         begin
@@ -291,7 +291,7 @@ class SimpleRpc::Client
       end
     end
 
-    private def connect : TCPSocket | UNIXSocket | OpenSSL::SSL::Socket::Client
+    protected def connect : TCPSocket | UNIXSocket | OpenSSL::SSL::Socket::Client
       _socket = if us = @unixsocket
                   UNIXSocket.new(us)
                 else
