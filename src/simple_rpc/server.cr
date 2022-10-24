@@ -8,6 +8,10 @@ class SimpleRpc::Server
 
   def initialize(@host : String = "127.0.0.1", @port : Int32 = 9999, @unixsocket : String? = nil, @ssl_context : OpenSSL::SSL::Context::Server? = nil,
                  @logger : Log? = nil, @close_connection_after_request = false)
+    after_initialize
+  end
+
+  def after_initialize
   end
 
   private def read_context(io) : Context
@@ -59,6 +63,10 @@ class SimpleRpc::Server
     io.close rescue nil
   end
 
+  def _handle(client)
+    handle(client)
+  end
+
   def run
     @server = server = if us = @unixsocket
                          UNIXServer.new(us)
@@ -67,13 +75,12 @@ class SimpleRpc::Server
                        end
 
     loop do
-      client = begin
-        server.accept
-      rescue Socket::Error
+      if client = server.accept?
+        spawn _handle(client)
+      else
         close
-        return
+        break
       end
-      spawn handle(client)
     end
   end
 
