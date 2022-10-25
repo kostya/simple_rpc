@@ -36,6 +36,7 @@ class SimpleRpc::ServerProxy < SimpleRpc::Server
     if check_dead_ports_in.to_f > 0
       spawn do
         loop do
+          break unless @server
           sleep check_dead_ports_in
           check_dead_ports
         end
@@ -45,6 +46,7 @@ class SimpleRpc::ServerProxy < SimpleRpc::Server
     if print_stats_in.to_f > 0
       spawn do
         loop do
+          break unless @server
           sleep print_stats_in
           loggin "Stat [#{@ports.size}, #{@alive_ports.size}], All ports: #{@ports}, Alive ports: #{@alive_ports}"
         end
