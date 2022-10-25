@@ -58,6 +58,10 @@ module SimpleRpc::Proto
               return ctx.write_result(res)
           \{% end %}
         \{% end %}
+        when SimpleRpc::INTERNAL_PING_METHOD
+          # this method added by simple_rpc, not required by specification
+          # we can check that connection is alive, with this
+          return ctx.write_result(true)
         else
           # skip
         end

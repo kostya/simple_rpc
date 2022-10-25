@@ -9,6 +9,8 @@ module SimpleRpc
   NOTIFY_SIZE   = 3
   RESPONSE_SIZE = 4
 
+  INTERNAL_PING_METHOD = "__internal_ping__"
+
   DEFAULT_MSG_ID = 0_u32
 end
 
