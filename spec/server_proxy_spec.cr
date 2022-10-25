@@ -40,7 +40,7 @@ class ProxyProto3
   end
 end
 
-def create_proxy_server
+def create_proxy_server(check_dead_ports_in = 1000.seconds)
   servers = (0..2).map do |port|
     case port % 3
     when 0
@@ -52,7 +52,8 @@ def create_proxy_server
     end
   end
   proxy = SimpleRpc::ServerProxy.new("127.0.0.1", 44330)
-  proxy.ports = [44333, 44334, 44335]
+  proxy.set_ports [44333, 44334, 44335]
+  proxy.check_dead_ports_in = check_dead_ports_in
   {servers, proxy}
 end
 
@@ -67,6 +68,26 @@ ensure
   proxy.close
   servers.each &.close
   sleep 0.1
+end
+
+def restart_servers_again(servers)
+  servers.each do |server|
+    spawn { server.run }
+  end
+  sleep 0.1
+  yield
+ensure
+  servers.each &.close
+  sleep 0.1
+end
+
+class SimpleRpc::ServerProxy
+  def check_dead_ports2
+    check_dead_ports
+  end
+
+  protected def loggin(msg)
+  end
 end
 
 context "ServerProxy" do
@@ -183,8 +204,66 @@ context "ServerProxy" do
 
           sleep 0.1
 
-          expect_raises(SimpleRpc::RuntimeError, "All ports dead") do
+          expect_raises(SimpleRpc::RuntimeError, "No alive ports") do
             client.request!(Tuple(Int32, Int32), :inc, 1)
+          end
+        end
+      end
+
+      it "RECHECK dead port, and run again" do
+        servers, proxy = create_proxy_server
+        with_run_proxy_server(servers, proxy) do
+          client = SimpleRpc::Client.new("127.0.0.1", 44330, mode: clmode)
+          ports = [] of Int32
+
+          3.times do
+            port, result = client.request!(Tuple(Int32, Int32), :inc, 1)
+            result.should eq 2
+
+            ports << port
+          end
+
+          ports.sort.should eq [1, 2, 3]
+
+          # 1 die
+          ports.clear
+          servers[0].close
+          servers[1].close
+          sleep 0.1
+
+          3.times do
+            port, result = client.request!(Tuple(Int32, Int32), :inc, 1)
+            result.should eq 2
+
+            ports << port
+          end
+
+          ports.size.should eq 3
+          ports.uniq.sort.should eq [3]
+
+          ports.clear
+          servers[2].close
+
+          sleep 0.1
+
+          expect_raises(SimpleRpc::RuntimeError, "No alive ports") do
+            client.request!(Tuple(Int32, Int32), :inc, 1)
+          end
+
+          restart_servers_again(servers) do
+            proxy.check_dead_ports2
+            sleep 0.1
+
+            ports.clear
+
+            3.times do
+              port, result = client.request!(Tuple(Int32, Int32), :inc, 1)
+              result.should eq 2
+
+              ports << port
+            end
+
+            ports.sort.should eq [1, 2, 3]
           end
         end
       end

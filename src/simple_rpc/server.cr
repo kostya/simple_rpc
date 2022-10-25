@@ -11,7 +11,7 @@ class SimpleRpc::Server
     after_initialize
   end
 
-  def after_initialize
+  protected def after_initialize
   end
 
   private def read_context(io) : Context
@@ -42,7 +42,7 @@ class SimpleRpc::Server
     Context.new(msgid, method, io_with_args, io, !request, @logger)
   end
 
-  def handle(io)
+  protected def handle(io)
     io.read_buffering = true if io.responds_to?(:read_buffering)
     io.sync = false if io.responds_to?(:sync=)
 
@@ -68,6 +68,9 @@ class SimpleRpc::Server
     handle(client)
   end
 
+  protected def before_run
+  end
+
   def run
     @server = server = if us = @unixsocket
                          UNIXServer.new(us)
@@ -75,6 +78,7 @@ class SimpleRpc::Server
                          TCPServer.new @host, @port
                        end
 
+    before_run
     loop do
       if client = server.accept?
         spawn _handle(client)
