@@ -96,13 +96,13 @@ class SimpleRpc::ServerProxy < SimpleRpc::Server
 
     result = :ok
 
-    client.with_connection do |connection|
+    begin
       v = begin
         begin
-          req(client, ctx, connection)
+          req(client, ctx)
         rescue SimpleRpc::ConnectionError
           # reconnecting here, if needed
-          req(client, ctx, connection)
+          req(client, ctx)
         end
 
         return true
@@ -127,17 +127,19 @@ class SimpleRpc::ServerProxy < SimpleRpc::Server
     false
   end
 
-  protected def req(client, ctx, connection)
-    connection.catch_connection_errors do
-      client.write_header(connection, ctx.method, ctx.msgid, ctx.notify) do |packer|
-        MessagePack::Copy.new(ctx.io_with_args.rewind, connection.socket).copy_object # copy array of arguments
-      end
+  protected def req(client, ctx)
+    client.with_connection do |connection|
+      connection.catch_connection_errors do
+        client.write_header(connection, ctx.method, ctx.msgid, ctx.notify) do |packer|
+          MessagePack::Copy.new(ctx.io_with_args.rewind, connection.socket).copy_object # copy array of arguments
+        end
 
-      unless ctx.notify
-        MessagePack::Copy.new(connection.socket, ctx.io).copy_object # copy body
-      end
+        unless ctx.notify
+          MessagePack::Copy.new(connection.socket, ctx.io).copy_object # copy body
+        end
 
-      ctx.io.flush
+        ctx.io.flush
+      end
     end
   end
 
