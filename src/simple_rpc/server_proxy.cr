@@ -93,38 +93,21 @@ class SimpleRpc::ServerProxy < SimpleRpc::Server
     return ctx.write_error("Proxy: All ports busy") if reschedule_count > @ports.size
 
     client, port = get_next_client
-
-    result = :ok
-
     begin
-      v = begin
-        begin
-          req(client, ctx)
-        rescue SimpleRpc::ConnectionError
-          # reconnecting here, if needed
-          req(client, ctx)
-        end
-
-        return true
-      rescue SimpleRpc::ConnectionError
-        result = :dead_connection
-      rescue SimpleRpc::CommandTimeoutError
-        result = :timeout
-      end
-    end
-
-    case result
-    when :dead_connection
-      mark_port_dead(port)
-      loggin "Dead connection #{port}, reschedule"
-      return handle_cxt(ctx, reschedule_count + 1)
-    when :timeout
-      loggin "Timeout #{port}, reschedule"
-      return handle_cxt(ctx, reschedule_count + 1)
+      return req(client, ctx)
+    rescue SimpleRpc::ConnectionLostError # reconnecting here, if needed
+      return req(client, ctx)
     end
 
     # unreachable actually
     false
+  rescue SimpleRpc::ConnectionError
+    mark_port_dead(port)
+    loggin "Dead connection #{port}, reschedule"
+    return handle_cxt(ctx, reschedule_count + 1)
+  rescue SimpleRpc::CommandTimeoutError
+    loggin "Timeout #{port}, reschedule"
+    return handle_cxt(ctx, reschedule_count + 1)
   end
 
   protected def req(client, ctx)
@@ -141,6 +124,8 @@ class SimpleRpc::ServerProxy < SimpleRpc::Server
         ctx.io.flush
       end
     end
+
+    true
   end
 
   protected def check_dead_ports
