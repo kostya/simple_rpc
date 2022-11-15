@@ -140,6 +140,8 @@ class SimpleRpc::ServerProxy < SimpleRpc::Server
       if result.ok? && result.value == true
         loggin("Alive #{port}")
         add_alive_port(port, client)
+      else
+        client.close
       end
     end
   end
