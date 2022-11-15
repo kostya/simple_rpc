@@ -16,8 +16,12 @@ class SimpleRpc::ServerProxy < SimpleRpc::Server
   def set_ports(ports : Array(Int32))
     @ports = ports.sort
 
-    @alive_ports.each do |port|
-      mark_port_dead(port) unless ports.includes?(port)
+    @clients.keys.each do |port|
+      unless ports.includes?(port)
+        @clients[port].close
+        @clients.delete(port)
+        mark_port_dead(port)
+      end
     end
 
     @ports.each do |port|
