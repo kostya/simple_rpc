@@ -21,7 +21,10 @@ class SimpleRpc::ServerProxy < SimpleRpc::Server
     end
 
     @ports.each do |port|
-      add_alive_port(port, new_client(port)) unless @clients[port]?
+      unless @clients[port]?
+        @clients[port] = new_client(port)
+        add_alive_port(port)
+      end
     end
   end
 
@@ -58,13 +61,11 @@ class SimpleRpc::ServerProxy < SimpleRpc::Server
     SimpleRpc::Client.new(@host, port, mode: :pool, connect_timeout: 1.0)
   end
 
-  protected def add_alive_port(port, client)
-    @clients[port] = client
+  protected def add_alive_port(port)
     @alive_ports << port
   end
 
   protected def mark_port_dead(port)
-    @clients.delete(port)
     @alive_ports.delete(port)
   end
 
@@ -135,13 +136,11 @@ class SimpleRpc::ServerProxy < SimpleRpc::Server
 
     dead_ports = @ports - @alive_ports
     dead_ports.each do |port|
-      client = new_client(port)
+      client = @clients[port]
       result = client.request(Bool, SimpleRpc::INTERNAL_PING_METHOD)
       if result.ok? && result.value == true
         loggin("Alive #{port}")
-        add_alive_port(port, client)
-      else
-        client.close
+        add_alive_port(port)
       end
     end
   end
