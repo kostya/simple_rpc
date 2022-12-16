@@ -50,6 +50,12 @@ describe SimpleRpc do
           res.should eq 33.6
         end
 
+        it "ok raw_result with outsize args2" do
+          unpacker = client.raw_request(:bla) { |packer| packer.write_array_start(2); packer.write("3.5"); packer.write(9.6) }
+          res = Float64.new(unpacker)
+          res.should eq 33.6
+        end
+
         it "error raw request" do
           expect_raises(SimpleRpc::TypeCastError, "Receive unexpected result type, expected String") do
             client.request!(String, :bla, "3.5", 9.6)
