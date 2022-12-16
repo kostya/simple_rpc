@@ -1,3 +1,6 @@
+## 1.8.0
+* Feature: Allow Client to pass args directly as msgpack
+
 ## 1.7.4
 * ServerProxy now can recheck dead connections
 

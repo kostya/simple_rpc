@@ -65,12 +65,11 @@ class SimpleRpc::Client
   #   SimpleRpc::PoolTimeoutError     - when no free connections in pool
 
   def request!(klass : T.class, name, *args) forall T
-    raw_request(name, Tuple.new(*args)) do |unpacker|
-      begin
-        klass.new(unpacker)
-      rescue ex : MessagePack::TypeCastError
-        raise SimpleRpc::TypeCastError.new("Receive unexpected result type, expected #{klass.inspect}")
-      end
+    unpacker = raw_request(name) { |packer| args.to_msgpack(packer) }
+    begin
+      klass.new(unpacker)
+    rescue ex : MessagePack::TypeCastError
+      raise SimpleRpc::TypeCastError.new("Receive unexpected result type, expected #{klass.inspect}")
     end
   end
 
@@ -95,12 +94,12 @@ class SimpleRpc::Client
   end
 
   def notify!(name, *args)
-    raw_notify(name, args)
+    raw_notify(name) { |packer| args.to_msgpack(packer) }
   end
 
-  def raw_request(method, args, msgid = SimpleRpc::DEFAULT_MSG_ID)
+  def raw_request(method, msgid = SimpleRpc::DEFAULT_MSG_ID)
     with_connection do |connection|
-      try_write_request(connection, method, args, msgid)
+      try_write_request(connection, method, msgid) { |packer| yield packer }
 
       # read request from server
       res = connection.catch_connection_errors do
@@ -112,7 +111,7 @@ class SimpleRpc::Client
             raise SimpleRpc::ProtocallError.new("unexpected msgid: expected #{msgid}, but got #{msg}")
           end
 
-          yield(MessagePack::NodeUnpacker.new(unpacker.read_node))
+          MessagePack::NodeUnpacker.new(unpacker.read_node)
         rescue ex : MessagePack::TypeCastError | MessagePack::UnexpectedByteError
           connection.close
           raise SimpleRpc::ProtocallError.new(ex.message)
@@ -169,34 +168,32 @@ class SimpleRpc::Client
     end
   end
 
-  protected def raw_notify(method, args)
+  protected def raw_notify(method)
     with_connection do |connection|
-      try_write_request(connection, method, args, SimpleRpc::DEFAULT_MSG_ID, true)
+      try_write_request(connection, method, SimpleRpc::DEFAULT_MSG_ID, true) { |packer| yield packer }
       nil
     end
   end
 
   # write header to server, but with one reconnection attempt,
   # because connection can be outdated for not ConnectPerRequest modes
-  protected def try_write_request(connection, method, args, msgid, notify = false)
+  protected def try_write_request(connection, method, msgid, notify = false)
     # write request to server
     if @mode.connect_per_request?
-      write_request(connection, method, args, msgid, notify)
+      write_request(connection, method, msgid, notify) { |packer| yield packer }
     else
       begin
-        write_request(connection, method, args, msgid, notify)
+        write_request(connection, method, msgid, notify) { |packer| yield packer }
       rescue SimpleRpc::ConnectionError
         # reconnecting here, if needed
-        write_request(connection, method, args, msgid, notify)
+        write_request(connection, method, msgid, notify) { |packer| yield packer }
       end
     end
   end
 
-  protected def write_request(conn, method, args, msgid, notify = false)
+  protected def write_request(conn, method, msgid, notify = false)
     conn.catch_connection_errors do
-      write_header(conn, method, msgid, notify) do |packer|
-        args.to_msgpack(packer)
-      end
+      write_header(conn, method, msgid, notify) { |packer| yield packer }
     end
   end
 
