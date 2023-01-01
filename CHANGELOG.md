@@ -1,3 +1,6 @@
+## 1.9.0
+* Replace resolver from case to hash (should speed up when many methods)
+
 ## 1.8.1
 * Better error messages
 
