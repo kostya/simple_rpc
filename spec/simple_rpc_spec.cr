@@ -109,19 +109,19 @@ describe SimpleRpc do
 
         it "exception" do
           res = client.bla("O_o", 9.6)
-          res.message!.should contain "SimpleRpc::RuntimeError: Exception in task execution: Invalid Float64: "
+          res.message!.should contain "SimpleRpc::RuntimeError: RuntimeError in bla[x : String, y : Float64]: 'Invalid Float64: \"O_o\"'"
           res.value.should eq nil
         end
 
         it "exception without wrapper" do
-          expect_raises(SimpleRpc::RuntimeError, "Exception in task execution: Invalid Float64: ") do
+          expect_raises(SimpleRpc::RuntimeError, "RuntimeError in bla[x : String, y : Float64]: 'Invalid Float64: \"O_o\"'") do
             client.bla!("O_o", 9.6)
           end
         end
 
         it "next request after exception should be ok (was a bug)" do
           res = client.bla("O_o", 9.6)
-          res.message!.should contain "SimpleRpc::RuntimeError: Exception in task execution: Invalid Float64: "
+          res.message!.should contain "SimpleRpc::RuntimeError: RuntimeError in bla[x : String, y : Float64]: 'Invalid Float64: \"O_o\"'"
           res.value.should eq nil
 
           res = client.bla("3.5", 9.6)
@@ -157,7 +157,7 @@ describe SimpleRpc do
         it "bad params" do
           client2 = SpecProto2::Client.new(HOST, PORT, mode: clmode)
           res = client2.bla(1.3, "2.5")
-          res.message!.should eq "SimpleRpc::RuntimeError: bad arguments, expected [x : String, y : Float64], but got x: FloatT(1.3)"
+          res.message!.should eq "SimpleRpc::RuntimeError: ArgumentError in bla[x : String, y : Float64]: bad argument x: 'Unexpected token FloatT(1.3) expected StringT or BytesT at 1' (at FloatT(1.3))"
           res.value.should eq nil
         end
 
@@ -245,7 +245,7 @@ describe SimpleRpc do
             res.value!.should eq 1
 
             res = client.request(Int32, :unions, 1.2)
-            res.message!.should eq "SimpleRpc::RuntimeError: bad arguments, expected [x : Int32 | String], but got x: FloatT(1.2)"
+            res.message!.should eq "SimpleRpc::RuntimeError: ArgumentError in unions[x : Int32 | String]: bad argument x: 'Couldn't parse data as {Int32, String} at 1' (at FloatT(1.2))"
           end
 
           it "string" do
@@ -258,7 +258,7 @@ describe SimpleRpc do
             res.value!.should eq "1"
 
             res = client.request(Int32, :unions, 1.2)
-            res.message!.should eq "SimpleRpc::RuntimeError: bad arguments, expected [x : Int32 | String], but got x: FloatT(1.2)"
+            res.message!.should eq "SimpleRpc::RuntimeError: ArgumentError in unions[x : Int32 | String]: bad argument x: 'Couldn't parse data as {Int32, String} at 1' (at FloatT(1.2))"
           end
 
           it "float" do
@@ -271,7 +271,7 @@ describe SimpleRpc do
             res.value!.should eq 5.5
 
             res = client.request(Int32, :unions, 1.2)
-            res.message!.should eq "SimpleRpc::RuntimeError: bad arguments, expected [x : Int32 | String], but got x: FloatT(1.2)"
+            res.message!.should eq "SimpleRpc::RuntimeError: ArgumentError in unions[x : Int32 | String]: bad argument x: 'Couldn't parse data as {Int32, String} at 1' (at FloatT(1.2))"
           end
 
           it "array" do
@@ -284,7 +284,7 @@ describe SimpleRpc do
             res.value!.should eq [1, 2, 3]
 
             res = client.request(Int32, :unions, 1.2)
-            res.message!.should eq "SimpleRpc::RuntimeError: bad arguments, expected [x : Int32 | String], but got x: FloatT(1.2)"
+            res.message!.should eq "SimpleRpc::RuntimeError: ArgumentError in unions[x : Int32 | String]: bad argument x: 'Couldn't parse data as {Int32, String} at 1' (at FloatT(1.2))"
           end
 
           it "bool" do
@@ -297,7 +297,7 @@ describe SimpleRpc do
             res.value!.should eq false
 
             res = client.request(Int32, :unions, 1.2)
-            res.message!.should eq "SimpleRpc::RuntimeError: bad arguments, expected [x : Int32 | String], but got x: FloatT(1.2)"
+            res.message!.should eq "SimpleRpc::RuntimeError: ArgumentError in unions[x : Int32 | String]: bad argument x: 'Couldn't parse data as {Int32, String} at 1' (at FloatT(1.2))"
           end
         end
 
@@ -338,7 +338,7 @@ describe SimpleRpc do
         it "raw request, wrong arguments types" do
           res = client.request(Float64, :bla, 3.5, 1.1)
           res.ok?.should eq false
-          res.message!.should eq "SimpleRpc::RuntimeError: bad arguments, expected [x : String, y : Float64], but got x: FloatT(3.5)"
+          res.message!.should eq "SimpleRpc::RuntimeError: ArgumentError in bla[x : String, y : Float64]: bad argument x: 'Unexpected token FloatT(3.5) expected StringT or BytesT at 1' (at FloatT(3.5))"
 
           # after this, should be ok request
           res = client.bla("3.5", 9.6)
@@ -349,7 +349,7 @@ describe SimpleRpc do
         it "raw request, wrong arguments types" do
           res = client.request(Float64, :bla, "3.5", "zopa")
           res.ok?.should eq false
-          res.message!.should eq "SimpleRpc::RuntimeError: bad arguments, expected [x : String, y : Float64], but got y: StringT(\"zopa\")"
+          res.message!.should eq "SimpleRpc::RuntimeError: ArgumentError in bla[x : String, y : Float64]: bad argument y: 'Unexpected token StringT(\"zopa\") expected IntT or FloatT at 5' (at StringT(\"zopa\"))"
 
           # after this, should be ok request
           res = client.bla("3.5", 9.6)
@@ -360,7 +360,7 @@ describe SimpleRpc do
         it "raw request, wrong arguments count" do
           res = client.request(Float64, :bla, "3.5")
           res.ok?.should eq false
-          res.message!.should eq "SimpleRpc::RuntimeError: bad arguments, expected [x : String, y : Float64], but got 1 args"
+          res.message!.should eq "SimpleRpc::RuntimeError: ArgumentError in bla[x : String, y : Float64]: bad arguments count: expected 2, but got 1"
 
           # after this, should be ok request
           res = client.bla("3.5", 9.6)
@@ -371,7 +371,7 @@ describe SimpleRpc do
         it "raw request, wrong arguments count" do
           res = client.request(Float64, :bla, "3.5", 10, 11, 12)
           res.ok?.should eq false
-          res.message!.should eq "SimpleRpc::RuntimeError: bad arguments, expected [x : String, y : Float64], but got 4 args"
+          res.message!.should eq "SimpleRpc::RuntimeError: ArgumentError in bla[x : String, y : Float64]: bad arguments count: expected 2, but got 4"
 
           # after this, should be ok request
           res = client.bla("3.5", 9.6)

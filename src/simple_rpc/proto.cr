@@ -28,7 +28,7 @@ module SimpleRpc::Proto
             when "\{{m.name}}"
               args_need_count = \{{ m.args.size.id }}
               if ctx_args_count != args_need_count
-                return ctx.write_error(\\%Q[bad arguments, expected \{{m.args.id}}, but got #{ctx_args_count} args])
+                return ctx.write_error(\\%Q[ArgumentError in #{ctx.method}\{{m.args.id}}: bad arguments count: expected #{args_need_count}, but got #{ctx_args_count}])
               end
 
               \{% if m.args.size > 0 %}
@@ -37,9 +37,9 @@ module SimpleRpc::Proto
                     \%_var_\{{arg.id} =
                       begin
                         Union(\{{ arg.restriction }}).new(unpacker)
-                      rescue MessagePack::TypeCastError
+                      rescue ex : MessagePack::TypeCastError
                         token = unpacker.@lexer.@token
-                        return ctx.write_error(\\%Q[bad arguments, expected \{{m.args.id}}, but got \{{arg.name}}: #{MessagePack::Token.to_s(token)}])
+                        return ctx.write_error(\\%Q[ArgumentError in #{ctx.method}\{{m.args.id}}: bad argument \{{arg.name}}: '#{ex.message}' (at #{MessagePack::Token.to_s(token)})])
                       end
                   \{% else %}
                     \{% raise "argument '#{arg}' in method '#{m.name}' must have a type restriction" %}
@@ -52,7 +52,13 @@ module SimpleRpc::Proto
                 obj.simple_rpc_context = ctx
                 obj.\{{m.name}}(\{% for arg in m.args %} \%_var_\{{arg.id}, \{% end %})
               rescue ex
-                return ctx.write_error("Exception in task execution: #{ex.message}")
+                msg = \\%Q[RuntimeError in #{ctx.method}\{{m.args.id}}: '#{ex.message}']
+                if ENV["SIMPLE_RPC_BACKTRACE"]? == "1"
+                  msg += " [#{ex.backtrace.join(", ")}]"
+                else
+                  msg += " (run server with env SIMPLE_RPC_BACKTRACE=1 to see backtrace)"
+                end
+                return ctx.write_error(msg)
               end
 
               return ctx.write_result(res)
