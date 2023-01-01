@@ -1,3 +1,6 @@
+## 1.8.1
+* Better error messages
+
 ## 1.8.0
 * Feature: Allow Client to pass args directly as msgpack
 
