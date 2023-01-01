@@ -3,15 +3,19 @@ require "msgpack"
 require "openssl"
 require "log"
 
-class SimpleRpc::Server
+abstract class SimpleRpc::Server
   @server : TCPServer | UNIXServer | Nil
 
   def initialize(@host : String = "127.0.0.1", @port : Int32 = 9999, @unixsocket : String? = nil, @ssl_context : OpenSSL::SSL::Context::Server? = nil,
                  @logger : Log? = nil, @close_connection_after_request = false)
     after_initialize
+    add_wrappers
   end
 
   protected def after_initialize
+  end
+
+  protected def add_wrappers
   end
 
   private def read_context(io) : Context
@@ -52,7 +56,8 @@ class SimpleRpc::Server
 
     loop do
       ctx = read_context(io)
-      handle_request(ctx) || ctx.write_error("method '#{ctx.method}' not found")
+      ctx.read_args_count
+      handle_request(ctx)
       break if @close_connection_after_request
     end
   rescue ex : IO::Error | Socket::Error | MessagePack::TypeCastError | MessagePack::UnexpectedByteError | OpenSSL::Error
@@ -89,7 +94,14 @@ class SimpleRpc::Server
     end
   end
 
+  abstract def method_find(method : String) : (SimpleRpc::Context ->)?
+
   protected def handle_request(ctx : Context)
+    if result = method_find ctx.method
+      result.call(ctx)
+    else
+      ctx.write_error("method '#{ctx.method}' not found")
+    end
   end
 
   def close

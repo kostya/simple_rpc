@@ -2,6 +2,7 @@ require "msgpack"
 
 module SimpleRpc::Proto
   macro included
+    SIMPLE_RPC_HASH = Hash(String, (SimpleRpc::Context ->) ).new    
     class Client < SimpleRpc::Client; end
     class Server < SimpleRpc::Server; end
 
@@ -16,67 +17,64 @@ module SimpleRpc::Proto
     end
 
     macro finished
-      def self.handle_request(ctx : SimpleRpc::Context)
-        \{% begin %}
-        unpacker = MessagePack::IOUnpacker.new(ctx.io_with_args.rewind)
-        ctx_args_count = unpacker.read_array_size
-        unpacker.finish_token!
-
-        case ctx.method
+      def self.add_wrappers
         \{% for m in @type.methods %}
           \{% if m.visibility.stringify == ":public" %}
-            when "\{{m.name}}"
-              args_need_count = \{{ m.args.size.id }}
-              if ctx_args_count != args_need_count
-                return ctx.write_error(\\%Q[ArgumentError in #{ctx.method}\{{m.args.id}}: bad arguments count: expected #{args_need_count}, but got #{ctx_args_count}])
-              end
-
-              \{% if m.args.size > 0 %}
-                \{% for arg in m.args %}
-                  \{% if arg.restriction %}
-                    \%_var_\{{arg.id} =
-                      begin
-                        Union(\{{ arg.restriction }}).new(unpacker)
-                      rescue ex : MessagePack::TypeCastError
-                        token = unpacker.@lexer.@token
-                        return ctx.write_error(\\%Q[ArgumentError in #{ctx.method}\{{m.args.id}}: bad argument \{{arg.name}}: '#{ex.message}' (at #{MessagePack::Token.to_s(token)})])
-                      end
-                  \{% else %}
-                    \{% raise "argument '#{arg}' in method '#{m.name}' must have a type restriction" %}
-                  \{% end %}
-                \{% end %}
-              \{% end %}
-
-              res = begin
-                obj = \{{@type}}.new
-                obj.simple_rpc_context = ctx
-                obj.\{{m.name}}(\{% for arg in m.args %} \%_var_\{{arg.id}, \{% end %})
-              rescue ex
-                msg = \\%Q[RuntimeError in #{ctx.method}\{{m.args.id}}: '#{ex.message}']
-                if ENV["SIMPLE_RPC_BACKTRACE"]? == "1"
-                  msg += " [#{ex.backtrace.join(", ")}]"
-                else
-                  msg += " (run server with env SIMPLE_RPC_BACKTRACE=1 to see backtrace)"
-                end
-                return ctx.write_error(msg)
-              end
-
-              return ctx.write_result(res)
+            \{{@type}}::SIMPLE_RPC_HASH["\{{m.name}}"] = ->(ctx : SimpleRpc::Context) { __simple_rpc_wrapper_\{{m.name}}(ctx) }
           \{% end %}
         \{% end %}
-        when SimpleRpc::INTERNAL_PING_METHOD
-          # this method added by simple_rpc, not required by specification
-          # we can check that connection is alive, with this
-          return ctx.write_result(true)
-        else
-          # skip
-        end
-        \{% end %}
+        SIMPLE_RPC_HASH[SimpleRpc::INTERNAL_PING_METHOD] = ->(ctx : SimpleRpc::Context) { ctx.write_result(true) }
       end
 
+      \{% for m in @type.methods %}
+        \{% if m.visibility.stringify == ":public" %}
+          def self.__simple_rpc_wrapper_\{{m.name}}(ctx : SimpleRpc::Context)
+            args_need_count = \{{ m.args.size.id }}
+            if ctx.args_count != args_need_count
+              return ctx.write_error(\\%Q[ArgumentError in \{{m.name}}\{{m.args.id}}: bad arguments count: expected #{args_need_count}, but got #{ctx.args_count}])
+            end
+
+            \{% if m.args.size > 0 %}
+              \{% for arg in m.args %}
+                \{% if arg.restriction %}
+                  \%_var_\{{arg.id} =
+                    begin
+                      Union(\{{ arg.restriction }}).new(ctx.unpacker)
+                    rescue ex : MessagePack::TypeCastError
+                      token = ctx.unpacker.@lexer.@token
+                      return ctx.write_error(\\%Q[ArgumentError in \{{m.name}}\{{m.args.id}}: bad argument \{{arg.name}}: '#{ex.message}' (at #{MessagePack::Token.to_s(token)})])
+                    end
+                \{% else %}
+                  \{% raise "argument '#{arg}' in method '#{m.name}' must have a type restriction" %}
+                \{% end %}
+              \{% end %}
+            \{% end %}
+
+            res = begin
+              obj = \{{@type}}.new
+              obj.simple_rpc_context = ctx
+              obj.\{{m.name}}(\{% for arg in m.args %} \%_var_\{{arg.id}, \{% end %})
+            rescue ex
+              if ENV["SIMPLE_RPC_BACKTRACE"]? == "1"
+                msg = \\%Q[RuntimeError in #{ctx.method}\{{m.args.id}}: '#{ex.message}' [#{ex.backtrace.join(", ")}]]
+              else
+                msg = \\%Q[RuntimeError in #{ctx.method}\{{m.args.id}}: '#{ex.message}' (run server with env SIMPLE_RPC_BACKTRACE=1 to see backtrace)]
+              end
+              return ctx.write_error(msg)
+            end
+
+            return ctx.write_result(res)
+          end
+        \{% end %}
+      \{% end %}
+
       class Server
-        def handle_request(ctx : SimpleRpc::Context)
-          \{{@type}}.handle_request(ctx)
+        def add_wrappers
+          \{{@type}}.add_wrappers
+        end
+
+        def method_find(method : String) : (SimpleRpc::Context ->)?
+          \{{@type}}::SIMPLE_RPC_HASH[method]?
         end
       end
 

@@ -85,6 +85,9 @@ class SimpleRpc::ServerProxy < SimpleRpc::Server
     puts "[#{Time.local}] -- Proxy(#{@port}): #{msg}"
   end
 
+  def method_find(method : String) : (SimpleRpc::Context ->)?
+  end
+
   protected def handle_request(ctx : Context)
     # special method added by proxy
     case ctx.method
