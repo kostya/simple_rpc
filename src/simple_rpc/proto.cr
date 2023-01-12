@@ -24,6 +24,7 @@ module SimpleRpc::Proto
           \{% end %}
         \{% end %}
         SIMPLE_RPC_HASH[SimpleRpc::INTERNAL_PING_METHOD] = ->(ctx : SimpleRpc::Context) { ctx.write_result(true) }
+        SIMPLE_RPC_HASH.rehash
       end
 
       \{% for m in @type.methods %}
