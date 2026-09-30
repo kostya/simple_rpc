@@ -2,8 +2,10 @@ require "msgpack"
 
 module SimpleRpc::Proto
   macro included
-    SIMPLE_RPC_HASH = Hash(String, (SimpleRpc::Context ->) ).new    
+    SIMPLE_RPC_HASH = Hash(String, (SimpleRpc::Context ->)).new
+
     class Client < SimpleRpc::Client; end
+
     class Server < SimpleRpc::Server; end
 
     @simple_rpc_context : SimpleRpc::Context?
@@ -38,7 +40,7 @@ module SimpleRpc::Proto
             \{% if m.args.size > 0 %}
               \{% for arg in m.args %}
                 \{% if arg.restriction %}
-                  \%_var_\{{arg.id} =
+                  \%_var_\{{arg.name}} =
                     begin
                       Union(\{{ arg.restriction }}).new(ctx.unpacker)
                     rescue ex : MessagePack::TypeCastError
@@ -54,7 +56,7 @@ module SimpleRpc::Proto
             res = begin
               obj = \{{@type}}.new
               obj.simple_rpc_context = ctx
-              obj.\{{m.name}}(\{% for arg in m.args %} \%_var_\{{arg.id}, \{% end %})
+              obj.\{{m.name}}(\{% for arg in m.args %} \%_var_\{{arg.name}}, \{% end %})
             rescue ex
               if ENV["SIMPLE_RPC_BACKTRACE"]? == "1"
                 msg = \\%Q[RuntimeError in #{ctx.method}\{{m.args.id}}: '#{ex.message}' [#{ex.backtrace.join(", ")}]]
